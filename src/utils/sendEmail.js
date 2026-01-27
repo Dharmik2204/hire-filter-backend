@@ -9,17 +9,29 @@ export const sendEmail = async ({ to, subject, text, html }) => {
     //     pass: process.env.EMAIL_PASS,
     //   },
     // });
+    // const transporter = nodemailer.createTransport({
+    //   host: process.env.EMAIL_HOST || "smtp.gmail.com",
+    //   port: Number(process.env.EMAIL_PORT) || 587,
+    //   secure: false,
+    //   auth: {
+    //     user: process.env.EMAIL_USER,
+    //     pass: process.env.EMAIL_PASS,
+    //   },
+    //   tls: {
+    //     rejectUnauthorized: false,
+    //   },
+    // });
     const transporter = nodemailer.createTransport({
-      host: process.env.EMAIL_HOST || "smtp.gmail.com",
-      port: Number(process.env.EMAIL_PORT) || 587,
-      secure: false,
+      host:  process.env.EMAIL_HOST || "smtp.gmail.com",
+      port:  Number(process.env.EMAIL_PORT) || 465,
+      secure: true, // IMPORTANT
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      tls: {
-        rejectUnauthorized: false,
-      },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
 
 
