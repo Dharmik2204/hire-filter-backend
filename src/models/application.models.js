@@ -28,9 +28,17 @@ const applicationSchema = new mongoose.Schema(
 
     status: {
       type: String,
-      enum: ["applied", "shortlisted", "rejected", "hired"],
+      enum: [
+        "applied",
+        "screening",
+        "interviewing",
+        "offer",
+        "rejected",
+        "archived"
+      ],
       default: "applied",
-    },
+    }
+    ,
 
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,

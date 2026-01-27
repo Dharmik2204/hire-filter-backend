@@ -1,16 +1,79 @@
 import {
+  createApplication,
   getApplicationsByJob,
+  getApplicationsByUser,
+  findByJobAndCandidate,
   updateApplicationStatus,
   getRankedApplications
 } from "../repositories/application.repository.js";
 
 import { getJobById } from "../repositories/job.repository.js";
+import { findUserById } from "../repositories/user.repository.js";
+/* ================= APPLY JOB & Create Application================= */
 
-/**
- * @desc    HR/Admin – View all applications for a job
- * @route   GET /applications/job/:jobId
- * @access  HR / Admin
- */
+export const applyJobController = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const userId = req.user._id;
+
+    const job = await getJobById(jobId);
+
+    if (!job || job.jobStatus !== "Open") {
+      return res.status(404).json({ message: "Job not available" });
+    }
+
+    const user = await findUserById(req.user._id);
+
+    if (!user) {
+      return res.status(401).json({
+        message: "User not found"
+      });
+    }
+
+    const alreadyApplied = await findByJobAndCandidate(jobId, userId);
+
+    if (alreadyApplied) {
+      return res.status(400).json({
+        message: "Already applied for this job",
+      });
+    }
+
+    const application = await createApplication({
+      jobId,
+      userId,
+      skills: user.skills
+    });
+
+    res.status(201).json({
+      success: true,
+      message: "Job applied successfully",
+      application,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Apply job failed" });
+  }
+};
+
+/* ================ get MYApplication =============== */
+export const getMyApplicationsController = async (req, res) => {
+  try {
+    const applications = await getApplicationsByUser(req.user._id);
+
+    res.status(200).json({
+      success: true,
+      count: applications.length,
+      data: applications,
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: "Failed to fetch my applications",
+    });
+  }
+};
+
+
+/* ================ get All Application (Hr/Admin)=============== */
 export const getApplicationsForJob = async (req, res) => {
   try {
     const { jobId } = req.params;
@@ -35,11 +98,7 @@ export const getApplicationsForJob = async (req, res) => {
   }
 };
 
-/**
- * @desc    HR/Admin – View ranked applications (by score)
- * @route   GET /applications/job/:jobId/ranked
- * @access  HR / Admin
- */
+/* ================ get Rank Application (Hr/Admin)=============== */
 export const getRankedApplicationsController = async (req, res) => {
   try {
     const { jobId } = req.params;
@@ -64,22 +123,21 @@ export const getRankedApplicationsController = async (req, res) => {
   }
 };
 
-/**
- * @desc    HR – Update application status
- * @route   PATCH /applications/:id/status
- * @access  HR
- */
+/* ================ update Application (Hr/Admin) =============== */
 export const updateApplicationStatusController = async (req, res) => {
   try {
-    const { id } = req.params;
+    const { applicationId } = req.params;
     const { status } = req.body;
 
     const allowedStatus = [
       "applied",
-      "shortlisted",
+      "screening",
+      "interviewing",
+      "offer",
       "rejected",
-      "hired",
+      "archived",
     ];
+
 
     if (!allowedStatus.includes(status)) {
       return res.status(400).json({
@@ -87,7 +145,9 @@ export const updateApplicationStatusController = async (req, res) => {
       });
     }
 
-    const updatedApplication = await updateApplicationStatus(id, status);
+    const updatedApplication = await updateApplicationStatus(
+      applicationId,
+      status);
 
     if (!updatedApplication) {
       return res.status(404).json({

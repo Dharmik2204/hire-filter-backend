@@ -1,13 +1,29 @@
 import express from "express";
-import { authorizeRoles,authMiddleware } from "../middlewares/authorize.middlewares.js";
+import { authorizeRoles, authMiddleware } from "../middlewares/authorize.middlewares.js";
 
 import {
   getApplicationsForJob,
   updateApplicationStatusController,
-  getRankedApplicationsController
+  getRankedApplicationsController,
+  applyJobController,
+  getMyApplicationsController
+
 } from "../controllers/application.js";
 
 const router = express.Router();
+
+router.post(
+  "/:jobId/apply",
+  authMiddleware,
+  applyJobController
+);
+
+
+router.get(
+  "/my",
+  authMiddleware,
+  getMyApplicationsController
+)
 
 /* ================= HR / ADMIN VIEW APPLICATIONS ================= */
 router.get(
@@ -19,7 +35,7 @@ router.get(
 
 router.get("/:jobId/ranked",
   authMiddleware,
-  authorizeRoles,
+  authorizeRoles("admin","hr"),
   getRankedApplicationsController
 )
 

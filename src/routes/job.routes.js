@@ -8,7 +8,6 @@ import {
   deleteJobController,
   getJobByIdController,
   getJobsController,
-  applyJobController,
   deleteHardJobController
 } from "../controllers/job.js";
 
@@ -23,11 +22,7 @@ router.post(
 );
 
 
-router.post(
-  "/:jobId/apply",
-  authMiddleware,
-  applyJobController
-);
+
 
 router.get("/", getJobsController);
 router.get("/:id", getJobByIdController);

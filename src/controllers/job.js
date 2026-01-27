@@ -166,63 +166,7 @@ export const getJobsController = async (req, res) => {
 };
 
 
-/* ================= APPLY JOB ================= */
 
-export const applyJobController = async (req, res) => {
-  try {
-    const { jobId } = req.params;
-    const userId = req.user._id;
-
-    const job = await getJobById(jobId);
-
-    if (!job || job.jobStatus !== "Open") {
-      return res.status(404).json({ message: "Job not available" });
-    }
-
-    const user = await findUserById(req.user._id);
-
-    if (!user) {
-      return res.status(401).json({
-        message: "User not found"
-      });
-    }
-
-
-    // // Check resume & skills
-    // if (!user.skills || user.skills.length === 0) {
-    //   return res.status(400).json({
-    //     message: "Please upload resume before applying",
-    //   });
-    // }
-
-    const alreadyApplied = await findByJobAndCandidate(jobId, userId);
-
-    if (alreadyApplied) {
-      return res.status(400).json({
-        message: "Already applied for this job",
-      });
-    }
-
-
-    // const scoreData = compareSkills(user.skills, job.requiredSkills)
-
-    const application = await createApplication({
-      jobId,
-      userId,
-      // skills: user.skills,
-      // scoreData,
-    });
-
-    res.status(201).json({
-      success: true,
-      message: "Job applied successfully",
-      application,
-    });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: "Apply job failed" });
-  }
-};
 
 
 
