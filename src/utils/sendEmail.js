@@ -3,39 +3,12 @@ import nodemailer from "nodemailer";
 export const sendEmail = async ({ to, subject, text, html }) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      service: "gmail", // ✅ IMPORTANT for Render
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: process.env.EMAIL_USER, // your gmail
+        pass: process.env.EMAIL_PASS, // Gmail App Password
       },
     });
-
-    // const transporter = nodemailer.createTransport({
-    //   host: process.env.EMAIL_HOST || "smtp.gmail.com",
-    //   port: Number(process.env.EMAIL_PORT) || 587,
-    //   secure: false,
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   tls: {
-    //     rejectUnauthorized: false,
-    //   },
-    // });
-    
-    // const transporter = nodemailer.createTransport({
-    //   host:  process.env.EMAIL_HOST || "smtp.gmail.com",
-    //   port:  Number(process.env.EMAIL_PORT) || 465,
-    //   secure: true, // IMPORTANT
-    //   auth: {
-    //     user: process.env.EMAIL_USER,
-    //     pass: process.env.EMAIL_PASS,
-    //   },
-    //   connectionTimeout: 10000,
-    //   greetingTimeout: 10000,
-    //   socketTimeout: 10000,
-    // });
-
 
     await transporter.sendMail({
       from: `"HireFilter Support" <${process.env.EMAIL_USER}>`,
@@ -45,9 +18,9 @@ export const sendEmail = async ({ to, subject, text, html }) => {
       html,
     });
 
-    console.log("Email sent successfully");
+    console.log("Email sent successfully (Gmail service)");
   } catch (error) {
-    console.error("Email error:", error);
+    console.error("Email error:", error.message);
     throw error;
   }
 };
