@@ -13,15 +13,6 @@ router.post("/resetPassword", resetPassword);
 router.post("/login", login);
 router.post("/logout", authMiddleware, logout);
 
-router.get("/test-mail", async (req, res) => {
-    await sendEmail({
-        to: "yourpersonalemail@gmail.com",
-        subject: "Render Gmail Test",
-        html: "<h2>Email working on Render 🚀</h2>",
-    });
-    res.send("Mail sent");
-});
-
 
 // protected
 router.get(
