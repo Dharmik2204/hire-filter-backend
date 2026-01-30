@@ -8,7 +8,7 @@ export const findUserByEmail = (email) => {
 
 
 export const findUserById = (id) => {
-  return User.findById(id);
+  return User.findOne({ _id: id });
 };
 
 export const createUser = (data) => {

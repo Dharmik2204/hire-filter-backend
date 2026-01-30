@@ -4,7 +4,6 @@ import { authorizeRoles, authMiddleware } from "../middlewares/authorize.middlew
 import {
   getApplicationsForJob,
   updateApplicationStatusController,
-  getRankedApplicationsController,
   applyJobController,
   getMyApplicationsController
 
@@ -15,6 +14,7 @@ const router = express.Router();
 router.post(
   "/:jobId/apply",
   authMiddleware,
+  authorizeRoles("user"),
   applyJobController
 );
 
@@ -33,11 +33,6 @@ router.get(
   getApplicationsForJob
 );
 
-router.get("/:jobId/ranked",
-  authMiddleware,
-  authorizeRoles("admin","hr"),
-  getRankedApplicationsController
-)
 
 /* ================= UPDATE APPLICATION STATUS ================= */
 router.patch(

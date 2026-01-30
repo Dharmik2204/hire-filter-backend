@@ -1,19 +1,16 @@
-// import { findByJobAndCandidate, createApplication } from "../repositories/application.repository.js";
-// import { getJobById } from "../repositories/job.repository.js";
 import fs from "fs";
-// import pdf from "pdf-parse/lib/pdf-parse.js";
-// import { extractSkillsFromText, compareSkills } from "../utils/skills.js";
+
 import {
   findUserById,
   updateUser,
   deleteUser,
 } from "../repositories/user.repository.js";
-// import { compareSkills } from "../utils/skills.js";
+
 
 /* ================= GET PROFILE ================= */
 export const getProfile = async (req, res) => {
   try {
-    const user = await findUserById(req.params._id);
+    const user = await findUserById(req.user._id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -48,7 +45,7 @@ export const updateProfile = async (req, res) => {
     }
 
     const updatedProfile = await updateUser(
-      req.params._id,
+      req.user._id,
       { $set: updateData }
     );
 
@@ -67,7 +64,7 @@ export const updateProfile = async (req, res) => {
 /* ================= DELETE PROFILE ================= */
 export const deleteProfile = async (req, res) => {
   try {
-    const user = await deleteUser(req.params._id);
+    const user = await deleteUser(req.user._id);
 
     if (!user) {
       return res.status(404).json({ message: "User not found" });
@@ -114,7 +111,7 @@ export const uploadResumeController = async (req, res) => {
     // );
 
     /* ✅ UPDATE NESTED FIELDS CORRECTLY */
-     await updateUser(user._id, {
+    await updateUser(user._id, {
       $set: {
         "profile.resume": req.file.path,
         // "profile.skills": skills,

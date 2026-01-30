@@ -4,7 +4,7 @@ import {
   getApplicationsByUser,
   findByJobAndCandidate,
   updateApplicationStatus,
-  getRankedApplications
+  // getRankedApplications
 } from "../repositories/application.repository.js";
 
 import { getJobById } from "../repositories/job.repository.js";
@@ -99,29 +99,29 @@ export const getApplicationsForJob = async (req, res) => {
 };
 
 /* ================ get Rank Application (Hr/Admin)=============== */
-export const getRankedApplicationsController = async (req, res) => {
-  try {
-    const { jobId } = req.params;
+// export const getRankedApplicationsController = async (req, res) => {
+//   try {
+//     const { jobId } = req.params;
 
-    const job = await getJobById(jobId);
-    if (!job) {
-      return res.status(404).json({ message: "Job not found" });
-    }
+//     const job = await getJobById(jobId);
+//     if (!job) {
+//       return res.status(404).json({ message: "Job not found" });
+//     }
 
-    const applications = await getRankedApplications(jobId);
+//     const applications = await getRankedApplications(jobId);
 
-    res.status(200).json({
-      success: true,
-      count: applications.length,
-      data: applications,
-    });
-  } catch (error) {
-    console.error("Ranking Error:", error);
-    res.status(500).json({
-      message: "Failed to rank applications",
-    });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       count: applications.length,
+//       data: applications,
+//     });
+//   } catch (error) {
+//     console.error("Ranking Error:", error);
+//     res.status(500).json({
+//       message: "Failed to rank applications",
+//     });
+//   }
+// };
 
 /* ================ update Application (Hr/Admin) =============== */
 export const updateApplicationStatusController = async (req, res) => {

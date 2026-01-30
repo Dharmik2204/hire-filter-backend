@@ -4,11 +4,11 @@ const router = express.Router();
 import { getProfile, updateProfile, deleteProfile, } from "../controllers/users.js";
 import { authorizeRoles, authMiddleware } from "../middlewares/authorize.middlewares.js";
 import upload from "../middlewares/upload.middlewares.js";
-import { uploadResumeController,uploadProfileImageController} from "../controllers/users.js";
+import { uploadResumeController, uploadProfileImageController } from "../controllers/users.js";
 
-router.get("/getProfile", authMiddleware, authorizeRoles, getProfile);
+router.get("/getProfile", authMiddleware, authorizeRoles("user","hr","admin"), getProfile);
 
-router.put("/updateProfile", authMiddleware, authorizeRoles, updateProfile);
+router.put("/updateProfile", authMiddleware, authorizeRoles("user","hr","admin"), updateProfile);
 
 router.post(
   "/upload-resume",

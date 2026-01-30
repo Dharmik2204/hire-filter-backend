@@ -39,10 +39,10 @@ export const updateApplicationStatus = (id, status) => {
     );
 };
 
-export const getRankedApplications = async (jobId) => {
-    return await Application.find({ job: jobId })
-        .populate("user", "name email")
-        .sort({ score: -1 });
-};
+// export const getRankedApplications = async (jobId) => {
+//     return await Application.find({ job: jobId })
+//         .populate("user", "name email")
+//         .sort({ score: -1 });
+// };
 
 

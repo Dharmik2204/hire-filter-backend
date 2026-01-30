@@ -16,7 +16,7 @@ export const authMiddleware = async (req, res, next) => {
 
         // 2️⃣ VERY IMPORTANT: verify token exists in DB
         const user = await User.findOne({
-            _id: decoded.id,
+            _id: decoded.id || decoded._id,
             token: token
         }).select("-password");
 
