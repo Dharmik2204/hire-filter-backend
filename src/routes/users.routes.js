@@ -1,14 +1,42 @@
 import express from "express";
 const router = express.Router();
 
-import { getProfile, updateProfile, deleteProfile, } from "../controllers/users.js";
-import { authorizeRoles, authMiddleware } from "../middlewares/authorize.middlewares.js";
+import {
+  getProfile,
+  updateProfile,
+  deleteProfile,
+  uploadResumeController,
+  uploadProfileImageController,
+} from "../controllers/users.js";
+
+import {
+  authorizeRoles,
+  authMiddleware,
+} from "../middlewares/authorize.middlewares.js";
+
 import upload from "../middlewares/upload.middlewares.js";
-import { uploadResumeController, uploadProfileImageController } from "../controllers/users.js";
 
-router.get("/getProfile", authMiddleware, authorizeRoles("user","hr","admin"), getProfile);
+/* =====================
+   PROFILE ROUTES
+===================== */
 
-router.put("/updateProfile", authMiddleware, authorizeRoles("user","hr","admin"), updateProfile);
+router.get(
+  "/getProfile",
+  authMiddleware,
+  authorizeRoles("user", "hr", "admin"),
+  getProfile
+);
+
+router.put(
+  "/updateProfile",
+  authMiddleware,
+  authorizeRoles("user", "hr", "admin"),
+  updateProfile
+);
+
+/* =====================
+   CLOUDINARY UPLOADS
+===================== */
 
 router.post(
   "/upload-resume",
@@ -24,6 +52,11 @@ router.post(
   uploadProfileImageController
 );
 
-router.delete("/deleteProfile", authMiddleware, authorizeRoles, deleteProfile);
+router.delete(
+  "/deleteProfile",
+  authMiddleware,
+  authorizeRoles("user", "hr", "admin"),
+  deleteProfile
+);
 
 export default router;

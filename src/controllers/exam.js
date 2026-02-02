@@ -22,8 +22,9 @@ export const createExamController = async (req, res) => {
       examType,
       title,
       questionCount,
-      duration,
+      durationMinutes,
       passingMarks,
+      
     } = req.body;
 
     const job = await getJobById(jobId);
@@ -43,7 +44,7 @@ export const createExamController = async (req, res) => {
       examType,
       title,
       questionCount,
-      duration,
+      durationMinutes,
       passingMarks,
     });
 
@@ -82,13 +83,18 @@ export const startExamController = async (req, res) => {
     }
 
     // 🎯 Fetch random questions from QuestionBank
-    const rawQuestions = await getRandomQuestions({
-      category:
-        exam.examType === "mixed"
-          ? { $in: ["aptitude", "reasoning", "verbal"] }
-          : exam.examType,
-      limit: exam.questionCount,
-    });
+    const rawQuestions = await getRandomQuestions(
+      exam.examType === "mixed"
+        ? {
+          categories: ["aptitude", "reasoning", "verbal"],
+          limit: exam.questionCount,
+        }
+        : {
+          category: exam.examType,
+          limit: exam.questionCount,
+        }
+    );
+
 
     // 🔒 Snapshot questions (remove correctAnswer before sending)
     const snapshotQuestions = rawQuestions.map((q) => ({
@@ -104,6 +110,7 @@ export const startExamController = async (req, res) => {
       examId,
       userId,
       questions: snapshotQuestions,
+      durationMinutes: exam.duration,
     });
 
     res.status(201).json({
@@ -132,6 +139,14 @@ export const submitExamController = async (req, res) => {
     const { answers } = req.body;
 
     const attempt = await findAttemptById(attemptId);
+
+    if (attempt.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        message: "Unauthorized submission",
+      });
+    }
+
+
     if (!attempt) {
       return res.status(404).json({
         message: "Exam attempt not found",

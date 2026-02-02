@@ -1,166 +1,181 @@
-import mongoose from "mongoose";
+// import mongoose from "mongoose";
 
-/* =======================
-   EXAM (HR CONFIG)
-======================= */
-const examSchema = new mongoose.Schema(
-    {
-        job: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Job",
-            required: true,
-            unique: true,
-        },
+// /* =======================
+//    EXAM (HR CONFIG)
+// ======================= */
+// const examSchema = new mongoose.Schema(
+//     {
+//         job: {
+//             type: mongoose.Schema.Types.ObjectId,
+//             ref: "Job",
+//             required: true,
+//             unique: true,
+//         },
 
-        examType: {
-            type: String,
-            enum: ["aptitude", "reasoning", "mixed"],
-            required: true,
-        },
+//         examType: {
+//             type: String,
+//             enum: ["aptitude", "reasoning", "mixed"],
+//             required: true,
+//         },
 
-        title: {
-            type: String,
-            required: true,
-        },
+//         title: {
+//             type: String,
+//             required: true,
+//         },
 
-        questionCount: {
-            type: Number,
-            required: true,
-        },
+//         questionCount: {
+//             type: Number,
+//             required: true,
+//             min:1
+//         },
 
-        duration: {
-            type: Number,
-            required: true,
-        },
+//         durationMinutes: {        
+//             type: Number,
+//             required: true,
+//             min:1
+//         },
 
-        passingMarks: {
-            type: Number,
-            required: true,
-        },
+//         passingMarks: { 
+//             type: Number,
+//             required: true,
+//         },
 
-        isActive: {
-            type: Boolean,
-            default: true,
-        },
-    },
-    { timestamps: true }
-);
+//         isActive: {
+//             type: Boolean,
+//             default: true,
+//         },
+//     },
+//     { timestamps: true }
+// );
 
-export const Exam = mongoose.model("Exam", examSchema);
+// export const Exam = mongoose.model("Exam", examSchema);
 
-/* =======================
-   QUESTION BANK
-======================= */
-const questionBankSchema = new mongoose.Schema(
-    {
-        category: {
-            type: String,
-            enum: ["aptitude", "reasoning", "verbal"],
-            required: true,
-        },
+// /* =======================
+//    QUESTION BANK
+// ======================= */
+// const questionBankSchema = new mongoose.Schema(
+//     {
+//         category: {
+//             type: String,
+//             enum: ["aptitude", "reasoning", "verbal"],
+//             required: true,
+//         },
 
-        question: {
-            type: String,
-            required: true,
-        },
+//         question: {
+//             type: String,
+//             required: true,
+//         },
 
-        options: {
-            type: [String],
-            required: true,
-        },
+//         options: {
+//             type: [String],
+//             required: true,
+//         },
 
-        correctAnswer: {
-            type: Number,
-            required: true,
-        },
+//         correctAnswer: {
+//             type: String,
+//             required: true,
+//         },
 
-        difficulty: {
-            type: String,
-            enum: ["easy", "medium", "hard"],
-            default: "medium",
-        },
+//         difficulty: {
+//             type: String,
+//             enum: ["easy", "medium", "hard"],
+//             default: "medium",
+//         },
 
-        marks: {
-            type: Number,
-            default: 1,
-        },
-    },
-    { timestamps: true }
-);
+//         marks: {
+//             type: Number,
+//             default: 1,
+//         },
+//     },
+//     { timestamps: true }
+// );
 
-export const QuestionBank = mongoose.model(
-    "QuestionBank",
-    questionBankSchema
-);
+// export const QuestionBank = mongoose.model(
+//     "QuestionBank",
+//     questionBankSchema
+// );
 
-/* =======================
-   EXAM ATTEMPT
-======================= */
-const examAttemptSchema = new mongoose.Schema(
-    {
-        application: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Application",
-            required: true,
-            unique: true,
-        },
+// /* =======================
+//    EXAM ATTEMPT
+// ======================= */
+// const examAttemptSchema = new mongoose.Schema(
+//     {
+//         application: {
+//             type: mongoose.Schema.Types.ObjectId,
+//             ref: "Application",
+//             required: true,
+//         },
 
-        exam: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Exam",
-            required: true,
-        },
+//         exam: {
+//             type: mongoose.Schema.Types.ObjectId,
+//             ref: "Exam",
+//             required: true,
+//         },
 
-        user: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "User",
-            required: true,
-        },
+//         user: {
+//             type: mongoose.Schema.Types.ObjectId,
+//             ref: "User",
+//             required: true,
+//         },
 
-        questions: [
-            {
-                _id: false,
-                questionId: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: "QuestionBank",
-                },
-                question: String,
-                options: [String],
-                correctAnswer: Number,
-                marks: Number,
-            },
-        ],
+//         startedAt: {
+//             type: Date,
+//             default: Date.now,
+//         },
 
-        answers: [
-            {
-                questionId: {
-                    type: mongoose.Schema.Types.ObjectId,
-                    ref: "QuestionBank",
-                },
-                selectedOption: Number,
-            },
-        ],
+//         expiresAt: {
+//             type: Date,
+//             required: true,
+//         },
 
-        score: {
-            type: Number,
-            default: 0,
-        },
+//         result: {
+//             type: String,
+//             enum: ["pass", "fail"],
+//         },
+//         questions: [
+//             {
+//                 _id: false,
+//                 questionId: {
+//                     type: mongoose.Schema.Types.ObjectId,
+//                     ref: "QuestionBank",
+//                 },
+//                 question: String,
+//                 options: [String],
+//                 correctAnswer: Number,
+//                 marks: Number,
+//             },
+//         ],
 
-        status: {
-            type: String,
-            enum: ["started", "submitted", "evaluated"],
-            default: "started",
-        },
-    },
-    { timestamps: true }
-);
+//         answers: [
+//             {
+//                 questionId: {
+//                     type: mongoose.Schema.Types.ObjectId,
+//                     ref: "QuestionBank",
+//                 },
+//                 selectedOption: Number,
+//             },
+//         ],
 
-examAttemptSchema.index(
-    { exam: 1, user: 1 },
-    { unique: true }
-);
+//         score: {
+//             type: Number,
+//             default: 0,
+//         },
 
-export const ExamAttempt = mongoose.model(
-    "ExamAttempt",
-    examAttemptSchema
-);
+//         status: {
+//             type: String,
+//             enum: ["started", "submitted", "evaluated"],
+//             default: "started",
+//         },
+//     },
+//     { timestamps: true }
+// );
+
+// examAttemptSchema.index(
+//     { exam: 1, user: 1 },
+//     { unique: true }
+// );
+
+// export const ExamAttempt = mongoose.model(
+//     "ExamAttempt",
+//     examAttemptSchema
+// );

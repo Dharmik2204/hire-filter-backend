@@ -1,4 +1,5 @@
-import fs from "fs";
+import cloudinary from "../config/cloudinary.js";
+
 
 import {
   findUserById,
@@ -77,13 +78,12 @@ export const deleteProfile = async (req, res) => {
 };
 /* ===============uploadResume==========  */
 
+
+/* ======================
+   UPLOAD RESUME
+====================== */
 export const uploadResumeController = async (req, res) => {
   try {
-    // const job = await getJobById(req.params.jobId);
-    // if (!job) {
-    //   return res.status(404).json({ message: "Job not found" });
-    // }
-
     if (!req.file) {
       return res.status(400).json({ message: "Resume is required" });
     }
@@ -93,44 +93,39 @@ export const uploadResumeController = async (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    /* 🔥 DELETE OLD RESUME */
-    if (
-      user.profile?.resume &&
-      fs.existsSync(user.profile.resume)
-    ) {
-      fs.unlinkSync(user.profile.resume);
+    /* 🔥 DELETE OLD RESUME FROM CLOUDINARY */
+    if (user.profile?.resume?.public_id) {
+      await cloudinary.uploader.destroy(
+        user.profile.resume.public_id,
+        { resource_type: "raw" }
+      );
     }
 
-    /* 📄 PARSE PDF */
-    // const buffer = fs.readFileSync(req.file.path);
-    // const pdfData = await pdf(buffer);
-
-    // const skills = extractSkillsFromText(
-    //   pdfData.text,
-    //   job.requiredSkills
-    // );
-
-    /* ✅ UPDATE NESTED FIELDS CORRECTLY */
+    /* ✅ UPDATE USER RESUME */
     await updateUser(user._id, {
       $set: {
-        "profile.resume": req.file.path,
-        // "profile.skills": skills,
+        "profile.resume": {
+          url: req.file.path,
+          public_id: req.file.filename,
+        },
       },
     });
 
     res.status(200).json({
       success: true,
-      message: "Resume upload",
-      // resume: updatedUser.profile.resume,
-      // skills: updatedUser.profile.skills
+      message: "Resume uploaded successfully",
     });
 
   } catch (error) {
-    console.error(error);
+    console.error("Resume upload error:", error);
     res.status(500).json({ message: "Resume processing failed" });
   }
 };
 
+
+/* ======================
+   UPLOAD PROFILE IMAGE
+====================== */
 export const uploadProfileImageController = async (req, res) => {
   try {
     if (!req.file) {
@@ -142,35 +137,31 @@ export const uploadProfileImageController = async (req, res) => {
       return res.status(401).json({ message: "User not found" });
     }
 
-    /* 🔥 DELETE OLD IMAGE */
-    if (
-      user.profile?.image &&
-      fs.existsSync(user.profile.image)
-    ) {
-      fs.unlinkSync(user.profile.image);
+    /* 🔥 DELETE OLD IMAGE FROM CLOUDINARY */
+    if (user.profile?.image?.public_id) {
+      await cloudinary.uploader.destroy(
+        user.profile.image.public_id
+      );
     }
 
-    /* ✅ UPDATE USER IMAGE */
+    /* ✅ UPDATE PROFILE IMAGE */
     const updatedUser = await updateUser(user._id, {
       $set: {
-        "profile.image": req.file.path,
+        "profile.image": {
+          url: req.file.path,
+          public_id: req.file.filename,
+        },
       },
     });
 
-    return res.status(200).json({
+    res.status(200).json({
       success: true,
       message: "Profile image uploaded successfully",
-      image: updatedUser.profile.image,
+      image: updatedUser.profile.image.url,
     });
 
   } catch (error) {
     console.error("Profile image upload error:", error);
-
-    // safety cleanup (if DB fails)
-    if (req.file?.path && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
-    }
-
     return res.status(500).json({
       success: false,
       message: "Profile image upload failed",
