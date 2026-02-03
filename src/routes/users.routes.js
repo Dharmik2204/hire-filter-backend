@@ -41,6 +41,7 @@ router.put(
 router.post(
   "/upload-resume",
   authMiddleware,
+  authorizeRoles("user"),
   upload.single("resume"),
   uploadResumeController
 );
