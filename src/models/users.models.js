@@ -72,8 +72,9 @@ const userSchema = new mongoose.Schema(
     permanentAddress: addressSchema,
 
     profile: {
-      image:{
-        type:String,
+      image: {
+        url: String,
+        public_id: String,
       },
       skills: [{ type: String, trim: true }],
 
@@ -85,7 +86,8 @@ const userSchema = new mongoose.Schema(
       education: String,
 
       resume: {
-        type: String, // resume URL/path
+        url: String,
+        public_id: String,
       },
 
       portfolio: String, // GitHub / Portfolio URL
