@@ -42,6 +42,11 @@ router.post(
   "/upload-resume",
   authMiddleware,
   authorizeRoles("user"),
+  (req, res, next) => {
+    console.log("Endpoint hit: /upload-resume");
+    console.log("Headers:", req.headers);
+    next();
+  },
   upload.single("resume"),
   uploadResumeController
 );

@@ -28,16 +28,19 @@ const storage = new CloudinaryStorage({
   },
 });
 
-// file filter (same logic as your local)
 const fileFilter = (req, file, cb) => {
+  // file filter (same logic as your local)
+  console.log("Multer fileFilter processing:", file.originalname, file.mimetype, file.fieldname);
   // resume validation
   if (file.fieldname === "resume") {
     if (
       file.mimetype === "application/pdf" ||
       file.mimetype.includes("word")
     ) {
+      console.log("Resume file accepted");
       cb(null, true);
     } else {
+      console.warn("Resume file rejected: Invalid MIME type", file.mimetype);
       cb(new Error("Only PDF or DOC/DOCX allowed for resume"));
     }
   }
@@ -56,6 +59,7 @@ const fileFilter = (req, file, cb) => {
   }
 
   else {
+    console.warn("Unsupported file field:", file.fieldname);
     cb(new Error("Unsupported file field"));
   }
 };

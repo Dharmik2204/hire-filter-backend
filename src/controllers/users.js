@@ -84,7 +84,12 @@ export const deleteProfile = async (req, res) => {
 ====================== */
 export const uploadResumeController = async (req, res) => {
   try {
+    console.log("Inside uploadResumeController");
+    console.log("req.file:", req.file);
+    console.log("req.body:", req.body);
+
     if (!req.file) {
+      console.error("No resume file found in request");
       return res.status(400).json({ message: "Resume is required" });
     }
 
