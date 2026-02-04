@@ -138,7 +138,14 @@ export const uploadProfileImageController = async (req, res) => {
     console.log("req.body:", req.body);
 
     if (!req.file) {
-      return res.status(400).json({ message: "Profile image is required" });
+      return res.status(400).json({
+        message: "Profile image is required",
+        debug: {
+          headers: req.headers,
+          body: req.body,
+          file: req.file
+        }
+      });
     }
 
     const user = await findUserById(req.user._id);
