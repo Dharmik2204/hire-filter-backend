@@ -39,8 +39,8 @@ export const createJobController = async (req, res) => {
     if (!jobTitle) return res.status(400).json(new ApiError(400, "Job title is required"));
     if (!companyName) return res.status(400).json(new ApiError(400, "Company name is required"));
 
-    if (!jobDescription || jobDescription.length < 50) {
-      return res.status(400).json(new ApiError(400, "Job description must be at least 50 characters long"));
+    if (!jobDescription || jobDescription.length < 5) {
+      return res.status(400).json(new ApiError(400, "Job description must be at least 5 characters long"));
     }
 
     if (!location) return res.status(400).json(new ApiError(400, "Location is required"));
