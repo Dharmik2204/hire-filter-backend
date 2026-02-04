@@ -133,6 +133,10 @@ export const uploadResumeController = async (req, res) => {
 ====================== */
 export const uploadProfileImageController = async (req, res) => {
   try {
+    console.log("Inside uploadProfileImageController");
+    console.log("req.file:", req.file);
+    console.log("req.body:", req.body);
+
     if (!req.file) {
       return res.status(400).json({ message: "Profile image is required" });
     }

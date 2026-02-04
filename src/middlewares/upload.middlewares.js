@@ -6,6 +6,7 @@ import cloudinary from "../config/cloudinary.js";
 const storage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
+    console.log("Multer Storage connecting for file:", file.fieldname);
     // RESUME
     if (file.fieldname === "resume") {
       return {

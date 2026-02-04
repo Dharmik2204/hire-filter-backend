@@ -54,6 +54,11 @@ router.post(
 router.post(
   "/upload-profile-image",
   authMiddleware,
+  (req, res, next) => {
+    console.log("Endpoint hit: /upload-profile-image");
+    console.log("Headers content-type:", req.headers["content-type"]);
+    next();
+  },
   upload.single("profileImage"),
   uploadProfileImageController
 );
