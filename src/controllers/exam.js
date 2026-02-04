@@ -11,6 +11,8 @@ import {
 } from "../repositories/exam.repository.js";
 
 import { getJobById } from "../repositories/job.repository.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { ApiError } from "../utils/ApiError.js";
 
 /* ======================
    CREATE EXAM (HR)
@@ -24,19 +26,21 @@ export const createExamController = async (req, res) => {
       questionCount,
       durationMinutes,
       passingMarks,
-      
+
     } = req.body;
+
+    if (!jobId) {
+      return res.status(400).json(new ApiError(400, "Job ID is required"));
+    }
 
     const job = await getJobById(jobId);
     if (!job) {
-      return res.status(404).json({ message: "Job not found" });
+      return res.status(404).json(new ApiError(404, "Job not found"));
     }
 
     const existingExam = await findExamByJobId(jobId);
     if (existingExam) {
-      return res.status(400).json({
-        message: "Exam already exists for this job",
-      });
+      return res.status(400).json(new ApiError(400, "Exam already exists for this job"));
     }
 
     const exam = await createExam({
@@ -48,13 +52,12 @@ export const createExamController = async (req, res) => {
       passingMarks,
     });
 
-    res.status(201).json({
-      success: true,
-      data: exam,
-    });
+    res.status(201).json(
+      new ApiResponse(201, exam, "Exam created successfully")
+    );
   } catch (error) {
     console.error("Create Exam Error:", error);
-    res.status(500).json({ message: "Failed to create exam" });
+    res.status(500).json(new ApiError(500, "Failed to create exam", [], error.stack));
   }
 };
 
@@ -66,20 +69,20 @@ export const startExamController = async (req, res) => {
     const { applicationId, examId } = req.body;
     const userId = req.user._id;
 
+    if (!applicationId || !examId) {
+      return res.status(400).json(new ApiError(400, "Application ID and Exam ID are required"));
+    }
+
     const existingAttempt =
       await findAttemptByApplicationId(applicationId);
 
     if (existingAttempt) {
-      return res.status(400).json({
-        message: "Exam already started for this application",
-      });
+      return res.status(400).json(new ApiError(400, "Exam already started for this application"));
     }
 
     const exam = await findExamById(examId);
     if (!exam || !exam.isActive) {
-      return res.status(404).json({
-        message: "Exam not available",
-      });
+      return res.status(404).json(new ApiError(404, "Exam not available"));
     }
 
     // 🎯 Fetch random questions from QuestionBank
@@ -113,20 +116,21 @@ export const startExamController = async (req, res) => {
       durationMinutes: exam.duration,
     });
 
-    res.status(201).json({
-      success: true,
-      attemptId: attempt._id,
-      questions: snapshotQuestions.map((q) => ({
-        questionId: q.questionId,
-        question: q.question,
-        options: q.options,
-        marks: q.marks,
-      })),
-      duration: exam.duration,
-    });
+    res.status(201).json(
+      new ApiResponse(201, {
+        attemptId: attempt._id,
+        questions: snapshotQuestions.map((q) => ({
+          questionId: q.questionId,
+          question: q.question,
+          options: q.options,
+          marks: q.marks,
+        })),
+        duration: exam.duration,
+      }, "Exam started successfully")
+    );
   } catch (error) {
     console.error("Start Exam Error:", error);
-    res.status(500).json({ message: "Failed to start exam" });
+    res.status(500).json(new ApiError(500, "Failed to start exam", [], error.stack));
   }
 };
 
@@ -138,30 +142,28 @@ export const submitExamController = async (req, res) => {
     const { attemptId } = req.params;
     const { answers } = req.body;
 
-    const attempt = await findAttemptById(attemptId);
-
-    if (attempt.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json({
-        message: "Unauthorized submission",
-      });
+    if (!attemptId) {
+      return res.status(400).json(new ApiError(400, "Attempt ID is required"));
     }
 
+    const attempt = await findAttemptById(attemptId);
 
     if (!attempt) {
-      return res.status(404).json({
-        message: "Exam attempt not found",
-      });
+      return res.status(404).json(new ApiError(404, "Exam attempt not found"));
+    }
+
+    if (attempt.user.toString() !== req.user._id.toString()) {
+      return res.status(403).json(new ApiError(403, "Unauthorized submission"));
     }
 
     await saveExamAnswers(attemptId, answers);
 
-    res.status(200).json({
-      success: true,
-      message: "Exam submitted successfully",
-    });
+    res.status(200).json(
+      new ApiResponse(200, null, "Exam submitted successfully")
+    );
   } catch (error) {
     console.error("Submit Exam Error:", error);
-    res.status(500).json({ message: "Failed to submit exam" });
+    res.status(500).json(new ApiError(500, "Failed to submit exam", [], error.stack));
   }
 };
 
@@ -172,11 +174,13 @@ export const evaluateExamController = async (req, res) => {
   try {
     const { attemptId } = req.params;
 
+    if (!attemptId) {
+      return res.status(400).json(new ApiError(400, "Attempt ID is required"));
+    }
+
     const attempt = await findAttemptById(attemptId);
     if (!attempt) {
-      return res.status(404).json({
-        message: "Attempt not found",
-      });
+      return res.status(404).json(new ApiError(404, "Attempt not found"));
     }
 
     let score = 0;
@@ -201,13 +205,14 @@ export const evaluateExamController = async (req, res) => {
       score
     );
 
-    res.status(200).json({
-      success: true,
-      score: updatedAttempt.score,
-      status: updatedAttempt.status,
-    });
+    res.status(200).json(
+      new ApiResponse(200, {
+        score: updatedAttempt.score,
+        status: updatedAttempt.status,
+      }, "Exam evaluated successfully")
+    );
   } catch (error) {
     console.error("Evaluate Exam Error:", error);
-    res.status(500).json({ message: "Failed to evaluate exam" });
+    res.status(500).json(new ApiError(500, "Failed to evaluate exam", [], error.stack));
   }
 };

@@ -1,4 +1,6 @@
 import cloudinary from "../config/cloudinary.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { ApiError } from "../utils/ApiError.js";
 
 
 import {
@@ -14,13 +16,15 @@ export const getProfile = async (req, res) => {
     const user = await findUserById(req.user._id);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json(new ApiError(404, "User not found"));
     }
 
-    res.status(200).json(user);
+    res.status(200).json(
+      new ApiResponse(200, user, "Profile fetched successfully")
+    );
   } catch (error) {
     console.error("error: ", error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json(new ApiError(500, error.message));
   }
 };
 
@@ -42,7 +46,7 @@ export const updateProfile = async (req, res) => {
     }
 
     if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({ message: "No data to update" });
+      return res.status(400).json(new ApiError(400, "No data to update"));
     }
 
     const updatedProfile = await updateUser(
@@ -51,14 +55,16 @@ export const updateProfile = async (req, res) => {
     );
 
     if (!updatedProfile) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json(new ApiError(404, "User not found"));
     }
 
-    res.status(200).json(updatedProfile);
+    res.status(200).json(
+      new ApiResponse(200, updatedProfile, "Profile updated successfully")
+    );
 
   } catch (error) {
     console.error("Update profile error:", error);
-    res.status(500).json({ message: error.message });
+    res.status(500).json(new ApiError(500, error.message));
   }
 };
 
@@ -68,12 +74,14 @@ export const deleteProfile = async (req, res) => {
     const user = await deleteUser(req.user._id);
 
     if (!user) {
-      return res.status(404).json({ message: "User not found" });
+      return res.status(404).json(new ApiError(404, "User not found"));
     }
 
-    res.status(200).json({ message: "User deleted successfully" });
+    res.status(200).json(
+      new ApiResponse(200, null, "User deleted successfully")
+    );
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json(new ApiError(500, error.message));
   }
 };
 /* ===============uploadResume==========  */
@@ -90,12 +98,12 @@ export const uploadResumeController = async (req, res) => {
 
     if (!req.file) {
       console.error("No resume file found in request");
-      return res.status(400).json({ message: "Resume is required" });
+      return res.status(400).json(new ApiError(400, "Resume is required"));
     }
 
     const user = await findUserById(req.user._id);
     if (!user) {
-      return res.status(401).json({ message: "User not found" });
+      return res.status(401).json(new ApiError(401, "User not found"));
     }
 
     /* 🔥 DELETE OLD RESUME FROM CLOUDINARY */
@@ -116,14 +124,13 @@ export const uploadResumeController = async (req, res) => {
       },
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Resume uploaded successfully",
-    });
+    res.status(200).json(
+      new ApiResponse(200, null, "Resume uploaded successfully")
+    );
 
   } catch (error) {
     console.error("Resume upload error:", error);
-    res.status(500).json({ message: "Resume processing failed" });
+    res.status(500).json(new ApiError(500, "Resume processing failed"));
   }
 };
 
@@ -138,19 +145,14 @@ export const uploadProfileImageController = async (req, res) => {
     console.log("req.body:", req.body);
 
     if (!req.file) {
-      return res.status(400).json({
-        message: "Profile image is required",
-        debug: {
-          headers: req.headers,
-          body: req.body,
-          file: req.file
-        }
-      });
+      return res.status(400).json(
+        new ApiError(400, "Profile image is required")
+      );
     }
 
     const user = await findUserById(req.user._id);
     if (!user) {
-      return res.status(401).json({ message: "User not found" });
+      return res.status(401).json(new ApiError(401, "User not found"));
     }
 
     /* 🔥 DELETE OLD IMAGE FROM CLOUDINARY */
@@ -170,17 +172,12 @@ export const uploadProfileImageController = async (req, res) => {
       },
     });
 
-    res.status(200).json({
-      success: true,
-      message: "Profile image uploaded successfully",
-      image: updatedUser.profile.image.url,
-    });
+    res.status(200).json(
+      new ApiResponse(200, updatedUser.profile.image.url, "Profile image uploaded successfully")
+    );
 
   } catch (error) {
     console.error("Profile image upload error:", error);
-    return res.status(500).json({
-      success: false,
-      message: "Profile image upload failed",
-    });
+    return res.status(500).json(new ApiError(500, "Profile image upload failed"));
   }
 };

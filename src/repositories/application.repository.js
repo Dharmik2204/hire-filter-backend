@@ -19,9 +19,9 @@ export const getApplicationsByJob = (jobId) => {
 };
 
 export const getApplicationsByUser = (userId) => {
-  return Application.find({ user: userId })
-    .populate("job", "jobTitle companyName location")
-    .sort({ createdAt: -1 });
+    return Application.find({ user: userId })
+        .populate("job", "jobTitle companyName location")
+        .sort({ createdAt: -1 });
 };
 
 export const findByJobAndCandidate = (jobId, userId) => {
@@ -39,10 +39,10 @@ export const updateApplicationStatus = (id, status) => {
     );
 };
 
-// export const getRankedApplications = async (jobId) => {
-//     return await Application.find({ job: jobId })
-//         .populate("user", "name email")
-//         .sort({ score: -1 });
-// };
+export const getRankedApplications = async (jobId) => {
+    return await Application.find({ job: jobId })
+        .populate("user", "name email")
+        .sort({ score: -1 });
+};
 
 

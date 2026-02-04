@@ -2,6 +2,8 @@ import { findUserByEmail, updateUserToken, createUser, deleteUser, saveOTP, clea
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/sendEmail.js";
+import { ApiResponse } from "../utils/ApiResponse.js";
+import { ApiError } from "../utils/ApiError.js";
 
 
 //signup
@@ -15,62 +17,26 @@ export const signup = async (req, res) => {
             role,
             company,
             adminKey,
-            // phone,
-            // currentAddress,
-            // permanentAddress
         } = req.body;
 
 
         if (role === "admin") {
             if (adminKey !== process.env.ADMIN_SECRET_KEY) {
-                return res.status(403).json({
-                    success: false,
-                    message: "Invalid admin secret key"
-                });
+                return res.status(403).json(new ApiError(403, "Invalid admin secret key"));
             }
         }
 
         if (!["user", "hr", "admin"].includes(role)) {
-            return res.status(403).json({
-                success: false,
-                message: "Invalid role",
-            });
+            return res.status(403).json(new ApiError(403, "Invalid role"));
         }
 
         if (role === "hr" && (!company)) {
-            return res.status(400).json({
-                success: false,
-                message: "Company details are required for HR"
-            });
+            return res.status(400).json(new ApiError(400, "Company details are required for HR"));
         }
-
-
-
-        // if (role === "user") {
-        //     if (!phone || !currentAddress || !permanentAddress) {
-        //         return res.status(400).json({
-        //             success: false,
-        //             message:
-        //                 "Phone, current address and permanent address are required for users",
-        //         });
-        //     }
-        // }
-
-        // if (role === "hr") {
-        //     if (!phone || !company) {
-        //         return res.status(400).json({
-        //             success: false,
-        //             message: "Phone number and Company are required for HR",
-        //         });
-        //     }
-        // }
 
         const userExists = await findUserByEmail(email);
         if (userExists) {
-            return res.status(409).json({
-                success: false,
-                message: "User already exists",
-            });
+            return res.status(409).json(new ApiError(409, "User already exists"));
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -81,23 +47,16 @@ export const signup = async (req, res) => {
             password: hashedPassword,
             role,
             company: role === "hr" ? company : undefined,
-            // phone,
-            // currentAddress: role === "user" ? currentAddress : undefined,
-            // permanentAddress: role === "user" ? permanentAddress : undefined
         };
 
         await createUser(userPayload);
 
-        return res.status(201).json({
-            success: true,
-            message: `${role} signup successful`,
-        });
+        return res.status(201).json(
+            new ApiResponse(201, null, `${role} signup successful`)
+        );
     } catch (error) {
         console.error("Signup error:", error);
-        return res.status(500).json({
-            success: false,
-            message: "Server error",
-        });
+        return res.status(500).json(new ApiError(500, "Server error", [], error.stack));
     }
 };
 
@@ -108,60 +67,38 @@ export const login = async (req, res) => {
         const { email, password } = req.body;
 
         if (!email || !password) {
-            return res.status(400).json({
-                success: false,
-                message: "Email and password required"
-            });
+            return res.status(400).json(new ApiError(400, "Email and password required"));
         }
 
         const user = await findUserByEmail(email);
         if (!user) {
-            return res.status(401).json({
-                success: false,
-                message: "Invalid credentials"
-            });
+            return res.status(401).json(new ApiError(401, "Invalid credentials"));
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json({
-                success: false,
-                message: "Invalid credentials"
-            });
+            return res.status(401).json(new ApiError(401, "Invalid credentials"));
         }
 
 
         const token = await jwt.sign(
             {
                 id: user._id,
-                role: user.role   // 👈 include role
+                role: user.role
             },
             process.env.JWT_SECRET,
             { expiresIn: "1d" }
         );
 
-
-
         await updateUserToken(user._id, token);
 
-
-
-        res.status(200).json({
-            success: true,
-            message: "Login successful",
-            token,
-            role: user.role   // 👈 REQUIRED
-        });
-
-
-
+        res.status(200).json(
+            new ApiResponse(200, { token, role: user.role }, "Login successful")
+        );
 
     } catch (error) {
         console.error("Login error:", error);
-        res.status(500).json({
-            success: false,
-            message: "Server error"
-        });
+        res.status(500).json(new ApiError(500, "Server error", [], error.stack));
     }
 };
 
@@ -173,16 +110,12 @@ export const logout = async (req, res) => {
 
         await updateUserToken(req.user._id, null);
 
-        res.status(200).json({
-            success: true,
-            message: "Logout successful"
-        });
+        res.status(200).json(
+            new ApiResponse(200, null, "Logout successful")
+        );
 
     } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Server error"
-        });
+        res.status(500).json(new ApiError(500, "Server error", [], error.stack));
     }
 };
 
@@ -194,18 +127,14 @@ export const forgotPassword = async (req, res) => {
         const { email } = req.body;
 
         if (!email) {
-            return res.status(400).json({
-                success: false,
-                message: "Email is Required"
-            });
+            return res.status(400).json(new ApiError(400, "Email is Required"));
         }
         const user = await findUserByEmail(email);
 
         if (!user) {
-            return res.status(200).json({
-                success: true,
-                message: "If the email exists, OTP has been sent"
-            });
+            return res.status(200).json(
+                new ApiResponse(200, null, "If the email exists, OTP has been sent")
+            );
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000);
@@ -228,16 +157,13 @@ export const forgotPassword = async (req, res) => {
         });
 
 
-        res.status(200).json({
-            success: true,
-            message: "OTP sent successfully"
-        });
+        res.status(200).json(
+            new ApiResponse(200, null, "OTP sent successfully")
+        );
 
     } catch (error) {
         console.error("Error: ", error);
-        res.status(500).json({
-            message: "Internal Server Error"
-        })
+        res.status(500).json(new ApiError(500, "Internal Server Error", [], error.stack));
     }
 }
 
@@ -248,26 +174,20 @@ export const resetPassword = async (req, res) => {
         const { email, otp, newPassword } = req.body;
 
         if (!email || !otp || !newPassword) {
-            return res.status(400).json({
-                message: "Email, OTP and new password required"
-            });
+            return res.status(400).json(new ApiError(400, "Email, OTP and new password required"));
         }
 
         const user = await findUserByEmail(email);
 
         // OTP missing or expired
         if (!user || !user.otp || user.otpExpiry < Date.now()) {
-            return res.status(400).json({
-                message: "Invalid or expired OTP"
-            });
+            return res.status(400).json(new ApiError(400, "Invalid or expired OTP"));
         }
 
         // Max attempts reached
         if (user.otpAttempts >= 3) {
             await clearOTPAndUpdatePassword(user._id, user.password);
-            return res.status(400).json({
-                message: "OTP attempts exceeded. Please request a new OTP."
-            });
+            return res.status(400).json(new ApiError(400, "OTP attempts exceeded. Please request a new OTP."));
         }
 
         // Compare OTP
@@ -275,10 +195,7 @@ export const resetPassword = async (req, res) => {
 
         if (!isOtpValid) {
             await incrementOtpAttempts(user._id);
-
-            return res.status(400).json({
-                message: "Invalid or expired OTP"
-            });
+            return res.status(400).json(new ApiError(400, "Invalid or expired OTP"));
         }
 
         // OTP correct → reset password
@@ -286,16 +203,13 @@ export const resetPassword = async (req, res) => {
 
         await clearOTPAndUpdatePassword(user._id, hashedPassword);
 
-        return res.status(200).json({
-            success: true,
-            message: "Password reset successful"
-        });
+        return res.status(200).json(
+            new ApiResponse(200, null, "Password reset successful")
+        );
 
     } catch (error) {
         console.error("Reset password error:", error);
-        return res.status(500).json({
-            message: "Internal Server Error"
-        });
+        return res.status(500).json(new ApiError(500, "Internal Server Error", [], error.stack));
     }
 };
 
