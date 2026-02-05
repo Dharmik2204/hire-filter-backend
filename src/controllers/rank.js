@@ -26,7 +26,8 @@ export const getRankedCandidates = async (req, res) => {
       new ApiResponse(200, applications, "Ranked candidates fetched successfully")
     );
   } catch (error) {
-    res.status(500).json(new ApiError(500, error.message));
+    console.error("Get Ranked Candidates Error:", error);
+    res.status(500).json(new ApiError(500, "Failed to fetch ranked candidates", [], error.stack));
   }
 };
 
@@ -55,6 +56,7 @@ export const updateStatus = async (req, res) => {
       new ApiResponse(200, application, "Status updated successfully")
     );
   } catch (error) {
-    res.status(500).json(new ApiError(500, error.message));
+    console.error("Update Status Error:", error);
+    res.status(500).json(new ApiError(500, "Failed to update status", [], error.stack));
   }
 };

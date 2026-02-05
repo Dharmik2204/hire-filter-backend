@@ -12,6 +12,24 @@ import {
 
 import { updateProfileSchema } from "../validations/user.validation.js";
 
+/* ================= GET PROFILE ================= */
+export const getProfile = async (req, res) => {
+  try {
+    const user = await findUserById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json(new ApiError(404, "User not found"));
+    }
+
+    res.status(200).json(
+      new ApiResponse(200, user, "User profile fetched successfully")
+    );
+  } catch (error) {
+    console.error("Get profile error:", error);
+    res.status(500).json(new ApiError(500, "Failed to fetch profile", [], error.stack));
+  }
+};
+
 /* ================= UPDATE PROFILE ================= */
 export const updateProfile = async (req, res) => {
   try {
@@ -72,7 +90,7 @@ export const updateProfile = async (req, res) => {
 
   } catch (error) {
     console.error("Update profile error:", error);
-    res.status(500).json(new ApiError(500, error.message));
+    res.status(500).json(new ApiError(500, "Failed to update profile", [], error.stack));
   }
 };
 
@@ -89,7 +107,8 @@ export const deleteProfile = async (req, res) => {
       new ApiResponse(200, null, "User deleted successfully")
     );
   } catch (error) {
-    res.status(500).json(new ApiError(500, error.message));
+    console.error("Delete profile error:", error);
+    res.status(500).json(new ApiError(500, "Failed to delete profile", [], error.stack));
   }
 };
 /* ===============uploadResume==========  */
@@ -138,7 +157,7 @@ export const uploadResumeController = async (req, res) => {
 
   } catch (error) {
     console.error("Resume upload error:", error);
-    res.status(500).json(new ApiError(500, "Resume processing failed"));
+    res.status(500).json(new ApiError(500, "Resume processing failed", [], error.stack));
   }
 };
 
@@ -186,6 +205,6 @@ export const uploadProfileImageController = async (req, res) => {
 
   } catch (error) {
     console.error("Profile image upload error:", error);
-    return res.status(500).json(new ApiError(500, "Profile image upload failed"));
+    res.status(500).json(new ApiError(500, "Profile image upload failed", [], error.stack));
   }
 };

@@ -119,7 +119,7 @@ export const startExamController = async (req, res) => {
       examId,
       userId,
       questions: snapshotQuestions,
-      durationMinutes: exam.duration,
+      durationMinutes: exam.durationMinutes,
     });
 
     res.status(201).json(
@@ -131,7 +131,7 @@ export const startExamController = async (req, res) => {
           options: q.options,
           marks: q.marks,
         })),
-        duration: exam.duration,
+        durationMinutes: exam.durationMinutes,
       }, "Exam started successfully")
     );
   } catch (error) {

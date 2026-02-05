@@ -116,7 +116,8 @@ export const logout = async (req, res) => {
         );
 
     } catch (error) {
-        res.status(500).json(new ApiError(500, "Server error", [], error.stack));
+        console.error("Logout error:", error);
+        res.status(500).json(new ApiError(500, "Logout failed", [], error.stack));
     }
 };
 
@@ -166,7 +167,7 @@ export const forgotPassword = async (req, res) => {
         );
 
     } catch (error) {
-        console.error("Error: ", error);
+        console.error("Forgot password error:", error);
         res.status(500).json(new ApiError(500, "Internal Server Error", [], error.stack));
     }
 }
