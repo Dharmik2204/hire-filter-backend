@@ -10,18 +10,22 @@ import { getJobById } from "../repositories/job.repository.js";
 import { findUserById } from "../repositories/user.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-import { isString } from "../utils/Validation.js";
+
+import { updateApplicationSchema, createApplicationSchema } from "../validations/application.validation.js";
 
 /* ================= APPLY JOB & Create Application================= */
 
 export const applyJobController = async (req, res) => {
   try {
-    const { jobId } = req.params;
-    const userId = req.user._id;
+    const { error, value } = createApplicationSchema.validate({ ...req.params, ...req.body }, { abortEarly: false });
 
-    if (!jobId || !isString(jobId)) {
-      return res.status(400).json(new ApiError(400, "Job ID is required as a string"));
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
+
+    const { jobId } = value;
+    const userId = req.user._id;
 
     const job = await getJobById(jobId);
 
@@ -73,11 +77,14 @@ export const getMyApplicationsController = async (req, res) => {
 /* ================ get All Application (Hr/Admin)=============== */
 export const getApplicationsForJob = async (req, res) => {
   try {
-    const { jobId } = req.params;
+    const { error, value } = getRankedCandidatesSchema.validate(req.params, { abortEarly: false });
 
-    if (!jobId || !isString(jobId)) {
-      return res.status(400).json(new ApiError(400, "Job ID is required as a string"));
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
+
+    const { jobId } = value;
 
     const job = await getJobById(jobId);
     if (!job) {
@@ -99,29 +106,18 @@ export const getApplicationsForJob = async (req, res) => {
 export const updateApplicationStatusController = async (req, res) => {
   try {
     const { applicationId } = req.params;
-    const { status } = req.body;
+    const { error, value } = updateApplicationSchema.validate(req.body, { abortEarly: false });
 
-    if (!applicationId || !isString(applicationId)) {
-      return res.status(400).json(new ApiError(400, "Application ID is required as a string"));
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
-    if (!status || !isString(status)) {
-      return res.status(400).json(new ApiError(400, "Status is required as a string"));
+    if (!applicationId) {
+      return res.status(400).json(new ApiError(400, "Application ID is required"));
     }
 
-    const allowedStatus = [
-      "applied",
-      "screening",
-      "interviewing",
-      "offer",
-      "rejected",
-      "archived",
-    ];
-
-
-    if (!allowedStatus.includes(status)) {
-      return res.status(400).json(new ApiError(400, "Invalid application status"));
-    }
+    const { status } = value;
 
     const updatedApplication = await updateApplicationStatus(
       applicationId,

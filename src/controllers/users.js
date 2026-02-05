@@ -10,52 +10,46 @@ import {
 } from "../repositories/user.repository.js";
 
 
-import { isString, isObject } from "../utils/Validation.js";
-
-
-/* ================= GET PROFILE ================= */
-export const getProfile = async (req, res) => {
-  try {
-    const user = await findUserById(req.user._id);
-
-    if (!user) {
-      return res.status(404).json(new ApiError(404, "User not found"));
-    }
-
-    res.status(200).json(
-      new ApiResponse(200, user, "Profile fetched successfully")
-    );
-  } catch (error) {
-    console.error("error: ", error);
-    res.status(500).json(new ApiError(500, error.message));
-  }
-};
+import { updateProfileSchema } from "../validations/user.validation.js";
 
 /* ================= UPDATE PROFILE ================= */
 export const updateProfile = async (req, res) => {
   try {
+    const { error, value } = updateProfileSchema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
+    }
+
     const updateData = {};
-    const { name, email, phone, profile } = req.body;
+    const { name, email, phone, currentAddress, permanentAddress, profile, company } = value;
 
-    /* BASIC FIELDS */
-    if (name) {
-      if (!isString(name)) return res.status(400).json(new ApiError(400, "Name must be a string"));
-      updateData.name = name;
-    }
-    if (email) {
-      if (!isString(email)) return res.status(400).json(new ApiError(400, "Email must be a string"));
-      updateData.email = email;
-    }
-    if (phone) {
-      if (!isString(phone)) return res.status(400).json(new ApiError(400, "Phone must be a string"));
-      updateData.phone = phone;
+    if (name) updateData.name = name;
+    if (email) updateData.email = email;
+    if (phone) updateData.phone = phone;
+
+    if (currentAddress) {
+      Object.keys(currentAddress).forEach((key) => {
+        updateData[`currentAddress.${key}`] = currentAddress[key];
+      });
     }
 
-    /* PROFILE (NESTED SAFE UPDATE) */
+    if (permanentAddress) {
+      Object.keys(permanentAddress).forEach((key) => {
+        updateData[`permanentAddress.${key}`] = permanentAddress[key];
+      });
+    }
+
     if (profile) {
-      if (!isObject(profile)) return res.status(400).json(new ApiError(400, "Profile must be an object"));
       Object.keys(profile).forEach((key) => {
         updateData[`profile.${key}`] = profile[key];
+      });
+    }
+
+    if (company) {
+      Object.keys(company).forEach((key) => {
+        updateData[`company.${key}`] = company[key];
       });
     }
 

@@ -13,13 +13,20 @@ import {
 import { getJobById } from "../repositories/job.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-import { isString, isNumber } from "../utils/Validation.js";
+import { createExamSchema, startExamSchema, submitExamSchema } from "../validations/exam.validation.js";
 
 /* ======================
    CREATE EXAM (HR)
-====================== */
+ ====================== */
 export const createExamController = async (req, res) => {
   try {
+    const { error, value } = createExamSchema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
+    }
+
     const {
       jobId,
       examType,
@@ -27,32 +34,7 @@ export const createExamController = async (req, res) => {
       questionCount,
       durationMinutes,
       passingMarks,
-
-    } = req.body;
-
-    if (!jobId || !isString(jobId)) {
-      return res.status(400).json(new ApiError(400, "Job ID is required as a string"));
-    }
-
-    if (!examType || !isString(examType)) {
-      return res.status(400).json(new ApiError(400, "Exam type is required as a string"));
-    }
-
-    if (!title || !isString(title)) {
-      return res.status(400).json(new ApiError(400, "Title is required as a string"));
-    }
-
-    if (questionCount !== undefined && !isNumber(questionCount)) {
-      return res.status(400).json(new ApiError(400, "Question count must be a number"));
-    }
-
-    if (durationMinutes !== undefined && !isNumber(durationMinutes)) {
-      return res.status(400).json(new ApiError(400, "Duration minutes must be a number"));
-    }
-
-    if (passingMarks !== undefined && !isNumber(passingMarks)) {
-      return res.status(400).json(new ApiError(400, "Passing marks must be a number"));
-    }
+    } = value;
 
     const job = await getJobById(jobId);
     if (!job) {
@@ -87,16 +69,14 @@ export const createExamController = async (req, res) => {
 ====================== */
 export const startExamController = async (req, res) => {
   try {
-    const { applicationId, examId } = req.body;
-    const userId = req.user._id;
+    const { error, value } = startExamSchema.validate(req.body, { abortEarly: false });
 
-    if (!applicationId || !examId) {
-      return res.status(400).json(new ApiError(400, "Application ID and Exam ID are required"));
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
-    if (!isString(applicationId) || !isString(examId)) {
-      return res.status(400).json(new ApiError(400, "Application ID and Exam ID must be strings"));
-    }
+    const { applicationId, examId } = value;
 
     const existingAttempt =
       await findAttemptByApplicationId(applicationId);
@@ -165,13 +145,18 @@ export const startExamController = async (req, res) => {
 export const submitExamController = async (req, res) => {
   try {
     const { attemptId } = req.params;
-    if (!attemptId || !isString(attemptId)) {
-      return res.status(400).json(new ApiError(400, "Attempt ID is required as a string"));
+    const { error, value } = submitExamSchema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
-    if (!answers || !isArray(answers)) {
-      return res.status(400).json(new ApiError(400, "Answers are required as an array"));
+    if (!attemptId) {
+      return res.status(400).json(new ApiError(400, "Attempt ID is required"));
     }
+
+    const { answers } = value;
 
     const attempt = await findAttemptById(attemptId);
 

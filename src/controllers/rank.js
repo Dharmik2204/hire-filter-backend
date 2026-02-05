@@ -9,14 +9,18 @@ import { getRankedApplications, updateApplicationStatus } from "../repositories/
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-import { isString } from "../utils/Validation.js";
+import { updateRankStatusSchema, getRankedCandidatesSchema } from "../validations/rank.validation.js";
 
 export const getRankedCandidates = async (req, res) => {
   try {
-    const { jobId } = req.params;
-    if (!jobId || !isString(jobId)) {
-      return res.status(400).json(new ApiError(400, "Job ID is required as a string"));
+    const { error, value } = getRankedCandidatesSchema.validate(req.params, { abortEarly: false });
+
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
+
+    const { jobId } = value;
     const applications = await getRankedApplications(jobId);
     res.status(200).json(
       new ApiResponse(200, applications, "Ranked candidates fetched successfully")
@@ -28,14 +32,22 @@ export const getRankedCandidates = async (req, res) => {
 
 export const updateStatus = async (req, res) => {
   try {
-    const { status } = req.body;
+    const { error, value } = updateRankStatusSchema.validate(req.body, { abortEarly: false });
 
-    if (!["shortlisted", "rejected", "hired"].includes(status)) {
-      return res.status(400).json(new ApiError(400, "Invalid status"));
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
+    }
+
+    const { status } = value;
+    const { applicationId } = req.params;
+
+    if (!applicationId) {
+      return res.status(400).json(new ApiError(400, "Application ID is required"));
     }
 
     const application = await updateApplicationStatus(
-      req.params.applicationId,
+      applicationId,
       status
     );
 

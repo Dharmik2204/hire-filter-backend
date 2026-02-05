@@ -1,3 +1,4 @@
+// This file is deprecated. Use Joi schemas in src/validations instead.
 export const isString = (val) => typeof val === "string";
 export const isNumber = (val) => typeof val === "number" && !isNaN(val);
 export const isBoolean = (val) => typeof val === "boolean";

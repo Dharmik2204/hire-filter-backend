@@ -4,13 +4,19 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/sendEmail.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-import { isString } from "../utils/Validation.js";
-
+import { signupSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "../validations/auth.validation.js";
 
 //signup
 
 export const signup = async (req, res) => {
     try {
+        const { error, value } = signupSchema.validate(req.body, { abortEarly: false });
+
+        if (error) {
+            const errorMessages = error.details.map((detail) => detail.message);
+            return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
+        }
+
         const {
             name,
             email,
@@ -18,38 +24,12 @@ export const signup = async (req, res) => {
             role,
             company,
             adminKey,
-        } = req.body;
-
-        // Presence and Type Checks
-        if (!name) return res.status(400).json(new ApiError(400, "Name is required"));
-        if (!isString(name)) return res.status(400).json(new ApiError(400, "Name must be a string"));
-
-        if (!email) return res.status(400).json(new ApiError(400, "Email is required"));
-        if (!isString(email)) return res.status(400).json(new ApiError(400, "Email must be a string"));
-
-        if (!password) return res.status(400).json(new ApiError(400, "Password is required"));
-        if (!isString(password)) return res.status(400).json(new ApiError(400, "Password must be a string"));
-
-        if (!role) return res.status(400).json(new ApiError(400, "Role is required"));
-        if (!isString(role)) return res.status(400).json(new ApiError(400, "Role must be a string"));
+        } = value;
 
         if (role === "admin") {
-            if (!adminKey) return res.status(400).json(new ApiError(400, "Admin secret key is required for admin role"));
-            if (!isString(adminKey)) return res.status(400).json(new ApiError(400, "Admin secret key must be a string"));
             if (adminKey !== process.env.ADMIN_SECRET_KEY) {
                 return res.status(403).json(new ApiError(403, "Invalid admin secret key"));
             }
-        }
-
-        if (!["user", "hr", "admin"].includes(role)) {
-            return res.status(403).json(new ApiError(403, "Invalid role"));
-        }
-
-        if (role === "hr" && (!company)) {
-            return res.status(400).json(new ApiError(400, "Company details are required for HR"));
-        }
-        if (role === "hr" && !isString(company)) {
-            return res.status(400).json(new ApiError(400, "Company must be a string"));
         }
 
         const userExists = await findUserByEmail(email);
@@ -82,15 +62,14 @@ export const signup = async (req, res) => {
 
 export const login = async (req, res) => {
     try {
-        const { email, password } = req.body;
+        const { error, value } = loginSchema.validate(req.body, { abortEarly: false });
 
-        if (!email || !password) {
-            return res.status(400).json(new ApiError(400, "Email and password required"));
+        if (error) {
+            const errorMessages = error.details.map((detail) => detail.message);
+            return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
         }
 
-        if (!isString(email) || !isString(password)) {
-            return res.status(400).json(new ApiError(400, "Email and password must be strings"));
-        }
+        const { email, password } = value;
 
         const user = await findUserByEmail(email);
         if (!user) {
@@ -146,14 +125,14 @@ export const logout = async (req, res) => {
 
 export const forgotPassword = async (req, res) => {
     try {
-        const { email } = req.body;
+        const { error, value } = forgotPasswordSchema.validate(req.body, { abortEarly: false });
 
-        if (!email) {
-            return res.status(400).json(new ApiError(400, "Email is Required"));
+        if (error) {
+            const errorMessages = error.details.map((detail) => detail.message);
+            return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
         }
-        if (!isString(email)) {
-            return res.status(400).json(new ApiError(400, "Email must be a string"));
-        }
+
+        const { email } = value;
         const user = await findUserByEmail(email);
 
         if (!user) {
@@ -196,19 +175,14 @@ export const forgotPassword = async (req, res) => {
 
 export const resetPassword = async (req, res) => {
     try {
-        const { email, otp, newPassword } = req.body;
+        const { error, value } = resetPasswordSchema.validate(req.body, { abortEarly: false });
 
-        if (!email || !otp || !newPassword) {
-            return res.status(400).json(new ApiError(400, "Email, OTP and new password required"));
+        if (error) {
+            const errorMessages = error.details.map((detail) => detail.message);
+            return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
         }
 
-        if (!isString(email) || !isString(newPassword)) {
-            return res.status(400).json(new ApiError(400, "Email and new password must be strings"));
-        }
-        // OTP could be number or string depending on how it's sent, but let's check for basic content
-        if (typeof otp !== "string" && typeof otp !== "number") {
-            return res.status(400).json(new ApiError(400, "OTP must be a string or number"));
-        }
+        const { email, otp, newPassword } = value;
 
         const user = await findUserByEmail(email);
 

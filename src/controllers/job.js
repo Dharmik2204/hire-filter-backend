@@ -15,15 +15,7 @@ import { findByJobAndCandidate, createApplication } from "../repositories/applic
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-import {
-  isString,
-  isNumber,
-  isArray,
-  isObject,
-  isDate,
-  isBoolean,
-} from "../utils/Validation.js";
-
+import { createJobSchema, updateJobSchema } from "../validations/job.validation.js";
 
 /* ================= CREATE JOB ================= */
 
@@ -32,79 +24,15 @@ export const createJobController = async (req, res) => {
     console.log("createJobController hit");
     console.log("req.body:", req.body);
 
-    const {
-      jobTitle,
-      companyName,
-      jobDescription,
-      location,
-      jobType,
-      experience,
-      requiredSkills,
-      lastDate,
-    } = req.body;
+    const { error, value } = createJobSchema.validate(req.body, { abortEarly: false });
 
-    // --- VALIDATION START ---
-
-    // Existence and Type Checks
-    if (!jobTitle) return res.status(400).json(new ApiError(400, "Job title is required"));
-    if (!isString(jobTitle)) return res.status(400).json(new ApiError(400, "Job title must be a string"));
-
-    if (!companyName) return res.status(400).json(new ApiError(400, "Company name is required"));
-    if (!isString(companyName)) return res.status(400).json(new ApiError(400, "Company name must be a string"));
-
-    if (!jobDescription) return res.status(400).json(new ApiError(400, "Job description is required"));
-    if (!isString(jobDescription)) return res.status(400).json(new ApiError(400, "Job description must be a string"));
-    if (jobDescription.length < 5) {
-      return res.status(400).json(new ApiError(400, "Job description must be at least 5 characters long"));
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
-
-    if (!location) return res.status(400).json(new ApiError(400, "Location is required"));
-    if (!isString(location)) return res.status(400).json(new ApiError(400, "Location must be a string"));
-
-    if (!jobType) return res.status(400).json(new ApiError(400, "Job type is required"));
-    if (!isString(jobType)) return res.status(400).json(new ApiError(400, "Job type must be a string"));
-
-    if (!requiredSkills) return res.status(400).json(new ApiError(400, "Required skills are required"));
-    if (!isArray(requiredSkills) || requiredSkills.length === 0) {
-      return res.status(400).json(new ApiError(400, "At least one skill is required in an array"));
-    }
-    if (!requiredSkills.every(isString)) {
-      return res.status(400).json(new ApiError(400, "All skills must be strings"));
-    }
-
-    if (!lastDate) return res.status(400).json(new ApiError(400, "Last date is required"));
-    if (!isDate(lastDate)) return res.status(400).json(new ApiError(400, "Last date must be a valid date"));
-
-    // Experience validation
-    if (!experience) return res.status(400).json(new ApiError(400, "Experience is required"));
-    if (!isObject(experience)) return res.status(400).json(new ApiError(400, "Experience must be an object"));
-
-    if (experience.min === undefined || experience.max === undefined) {
-      return res.status(400).json(new ApiError(400, "Experience min and max are required"));
-    }
-    if (!isNumber(experience.min) || !isNumber(experience.max)) {
-      return res.status(400).json(new ApiError(400, "Experience min and max must be numbers"));
-    }
-    if (experience.min < 0 || experience.max < 0) {
-      return res.status(400).json(new ApiError(400, "Experience cannot be negative"));
-    }
-    if (experience.min > experience.max) {
-      return res.status(400).json(new ApiError(400, "Minimum experience cannot be greater than maximum experience"));
-    }
-
-    // Optional Salary validation
-    if (req.body.salary) {
-      const { salary } = req.body;
-      if (!isObject(salary)) return res.status(400).json(new ApiError(400, "Salary must be an object"));
-      if (salary.min !== undefined && !isNumber(salary.min)) return res.status(400).json(new ApiError(400, "Salary min must be a number"));
-      if (salary.max !== undefined && !isNumber(salary.max)) return res.status(400).json(new ApiError(400, "Salary max must be a number"));
-      if (salary.currency !== undefined && !isString(salary.currency)) return res.status(400).json(new ApiError(400, "Salary currency must be a string"));
-      if (salary.isNegotiable !== undefined && !isBoolean(salary.isNegotiable)) return res.status(400).json(new ApiError(400, "Salary isNegotiable must be a boolean"));
-    }
-    // --- VALIDATION END ---
 
     const job = await createJob({
-      ...req.body,
+      ...value,
       createdBy: req.user._id,
     });
 
@@ -128,8 +56,11 @@ export const updateJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
     }
 
-    if (!req.body || Object.keys(req.body).length === 0) {
-      return res.status(400).json(new ApiError(400, "Update data cannot be empty"));
+    const { error, value } = updateJobSchema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
     const job = await getJobByIdInternal(req.params.id);
@@ -145,7 +76,7 @@ export const updateJobController = async (req, res) => {
       return res.status(403).json(new ApiError(403, "Unauthorized"));
     }
 
-    const updatedJob = await updateJobById(req.params.id, req.body);
+    const updatedJob = await updateJobById(req.params.id, value);
 
     res.json(
       new ApiResponse(200, updatedJob, "Job updated successfully")
@@ -251,11 +182,20 @@ export const getJobByIdController = async (req, res) => {
   }
 };
 
+import { createJobSchema, updateJobSchema, getJobsSchema } from "../validations/job.validation.js";
+
 /* ================= GET ALL / SEARCH JOBS ================= */
 
 export const getJobsController = async (req, res) => {
   try {
-    const { page, limit, ...filters } = req.query;
+    const { error, value } = getJobsSchema.validate(req.query, { abortEarly: false });
+
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
+    }
+
+    const { page, limit, ...filters } = value;
 
     const jobs = await searchJobs(filters, {
       page: Number(page),
