@@ -15,7 +15,7 @@ import { findByJobAndCandidate, createApplication } from "../repositories/applic
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-import { createJobSchema, updateJobSchema } from "../validations/job.validation.js";
+import { createJobSchema, updateJobSchema, getJobsSchema } from "../validations/job.validation.js";
 
 /* ================= CREATE JOB ================= */
 
@@ -182,7 +182,6 @@ export const getJobByIdController = async (req, res) => {
   }
 };
 
-import { createJobSchema, updateJobSchema, getJobsSchema } from "../validations/job.validation.js";
 
 /* ================= GET ALL / SEARCH JOBS ================= */
 

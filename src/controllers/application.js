@@ -12,6 +12,7 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 
 import { updateApplicationSchema, createApplicationSchema } from "../validations/application.validation.js";
+import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
 
 /* ================= APPLY JOB & Create Application================= */
 

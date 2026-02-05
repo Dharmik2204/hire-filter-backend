@@ -77,6 +77,7 @@ export const startExamController = async (req, res) => {
     }
 
     const { applicationId, examId } = value;
+    const userId = req.user._id;
 
     const existingAttempt =
       await findAttemptByApplicationId(applicationId);
