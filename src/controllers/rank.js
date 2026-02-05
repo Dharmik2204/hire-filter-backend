@@ -9,10 +9,15 @@ import { getRankedApplications, updateApplicationStatus } from "../repositories/
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { isString } from "../utils/Validation.js";
 
 export const getRankedCandidates = async (req, res) => {
   try {
-    const applications = await getRankedApplications(req.params.jobId);
+    const { jobId } = req.params;
+    if (!jobId || !isString(jobId)) {
+      return res.status(400).json(new ApiError(400, "Job ID is required as a string"));
+    }
+    const applications = await getRankedApplications(jobId);
     res.status(200).json(
       new ApiResponse(200, applications, "Ranked candidates fetched successfully")
     );

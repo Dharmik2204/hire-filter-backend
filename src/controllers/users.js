@@ -10,6 +10,9 @@ import {
 } from "../repositories/user.repository.js";
 
 
+import { isString, isObject } from "../utils/Validation.js";
+
+
 /* ================= GET PROFILE ================= */
 export const getProfile = async (req, res) => {
   try {
@@ -32,16 +35,27 @@ export const getProfile = async (req, res) => {
 export const updateProfile = async (req, res) => {
   try {
     const updateData = {};
+    const { name, email, phone, profile } = req.body;
 
     /* BASIC FIELDS */
-    if (req.body.name) updateData.name = req.body.name;
-    if (req.body.email) updateData.email = req.body.email;
-    if (req.body.phone) updateData.phone = req.body.phone;
+    if (name) {
+      if (!isString(name)) return res.status(400).json(new ApiError(400, "Name must be a string"));
+      updateData.name = name;
+    }
+    if (email) {
+      if (!isString(email)) return res.status(400).json(new ApiError(400, "Email must be a string"));
+      updateData.email = email;
+    }
+    if (phone) {
+      if (!isString(phone)) return res.status(400).json(new ApiError(400, "Phone must be a string"));
+      updateData.phone = phone;
+    }
 
     /* PROFILE (NESTED SAFE UPDATE) */
-    if (req.body.profile && typeof req.body.profile === "object") {
-      Object.keys(req.body.profile).forEach((key) => {
-        updateData[`profile.${key}`] = req.body.profile[key];
+    if (profile) {
+      if (!isObject(profile)) return res.status(400).json(new ApiError(400, "Profile must be an object"));
+      Object.keys(profile).forEach((key) => {
+        updateData[`profile.${key}`] = profile[key];
       });
     }
 

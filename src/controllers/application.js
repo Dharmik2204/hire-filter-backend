@@ -10,6 +10,7 @@ import { getJobById } from "../repositories/job.repository.js";
 import { findUserById } from "../repositories/user.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { isString } from "../utils/Validation.js";
 
 /* ================= APPLY JOB & Create Application================= */
 
@@ -18,8 +19,8 @@ export const applyJobController = async (req, res) => {
     const { jobId } = req.params;
     const userId = req.user._id;
 
-    if (!jobId) {
-      return res.status(400).json(new ApiError(400, "Job ID is required"));
+    if (!jobId || !isString(jobId)) {
+      return res.status(400).json(new ApiError(400, "Job ID is required as a string"));
     }
 
     const job = await getJobById(jobId);
@@ -74,8 +75,8 @@ export const getApplicationsForJob = async (req, res) => {
   try {
     const { jobId } = req.params;
 
-    if (!jobId) {
-      return res.status(400).json(new ApiError(400, "Job ID is required"));
+    if (!jobId || !isString(jobId)) {
+      return res.status(400).json(new ApiError(400, "Job ID is required as a string"));
     }
 
     const job = await getJobById(jobId);
@@ -100,12 +101,12 @@ export const updateApplicationStatusController = async (req, res) => {
     const { applicationId } = req.params;
     const { status } = req.body;
 
-    if (!applicationId) {
-      return res.status(400).json(new ApiError(400, "Application ID is required"));
+    if (!applicationId || !isString(applicationId)) {
+      return res.status(400).json(new ApiError(400, "Application ID is required as a string"));
     }
 
-    if (!status) {
-      return res.status(400).json(new ApiError(400, "Status is required"));
+    if (!status || !isString(status)) {
+      return res.status(400).json(new ApiError(400, "Status is required as a string"));
     }
 
     const allowedStatus = [

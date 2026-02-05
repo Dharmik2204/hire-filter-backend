@@ -13,6 +13,7 @@ import {
 import { getJobById } from "../repositories/job.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { isString, isNumber } from "../utils/Validation.js";
 
 /* ======================
    CREATE EXAM (HR)
@@ -29,8 +30,28 @@ export const createExamController = async (req, res) => {
 
     } = req.body;
 
-    if (!jobId) {
-      return res.status(400).json(new ApiError(400, "Job ID is required"));
+    if (!jobId || !isString(jobId)) {
+      return res.status(400).json(new ApiError(400, "Job ID is required as a string"));
+    }
+
+    if (!examType || !isString(examType)) {
+      return res.status(400).json(new ApiError(400, "Exam type is required as a string"));
+    }
+
+    if (!title || !isString(title)) {
+      return res.status(400).json(new ApiError(400, "Title is required as a string"));
+    }
+
+    if (questionCount !== undefined && !isNumber(questionCount)) {
+      return res.status(400).json(new ApiError(400, "Question count must be a number"));
+    }
+
+    if (durationMinutes !== undefined && !isNumber(durationMinutes)) {
+      return res.status(400).json(new ApiError(400, "Duration minutes must be a number"));
+    }
+
+    if (passingMarks !== undefined && !isNumber(passingMarks)) {
+      return res.status(400).json(new ApiError(400, "Passing marks must be a number"));
     }
 
     const job = await getJobById(jobId);
@@ -71,6 +92,10 @@ export const startExamController = async (req, res) => {
 
     if (!applicationId || !examId) {
       return res.status(400).json(new ApiError(400, "Application ID and Exam ID are required"));
+    }
+
+    if (!isString(applicationId) || !isString(examId)) {
+      return res.status(400).json(new ApiError(400, "Application ID and Exam ID must be strings"));
     }
 
     const existingAttempt =
@@ -140,10 +165,12 @@ export const startExamController = async (req, res) => {
 export const submitExamController = async (req, res) => {
   try {
     const { attemptId } = req.params;
-    const { answers } = req.body;
+    if (!attemptId || !isString(attemptId)) {
+      return res.status(400).json(new ApiError(400, "Attempt ID is required as a string"));
+    }
 
-    if (!attemptId) {
-      return res.status(400).json(new ApiError(400, "Attempt ID is required"));
+    if (!answers || !isArray(answers)) {
+      return res.status(400).json(new ApiError(400, "Answers are required as an array"));
     }
 
     const attempt = await findAttemptById(attemptId);

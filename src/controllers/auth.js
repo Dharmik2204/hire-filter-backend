@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/sendEmail.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { isString } from "../utils/Validation.js";
 
 
 //signup
@@ -19,8 +20,22 @@ export const signup = async (req, res) => {
             adminKey,
         } = req.body;
 
+        // Presence and Type Checks
+        if (!name) return res.status(400).json(new ApiError(400, "Name is required"));
+        if (!isString(name)) return res.status(400).json(new ApiError(400, "Name must be a string"));
+
+        if (!email) return res.status(400).json(new ApiError(400, "Email is required"));
+        if (!isString(email)) return res.status(400).json(new ApiError(400, "Email must be a string"));
+
+        if (!password) return res.status(400).json(new ApiError(400, "Password is required"));
+        if (!isString(password)) return res.status(400).json(new ApiError(400, "Password must be a string"));
+
+        if (!role) return res.status(400).json(new ApiError(400, "Role is required"));
+        if (!isString(role)) return res.status(400).json(new ApiError(400, "Role must be a string"));
 
         if (role === "admin") {
+            if (!adminKey) return res.status(400).json(new ApiError(400, "Admin secret key is required for admin role"));
+            if (!isString(adminKey)) return res.status(400).json(new ApiError(400, "Admin secret key must be a string"));
             if (adminKey !== process.env.ADMIN_SECRET_KEY) {
                 return res.status(403).json(new ApiError(403, "Invalid admin secret key"));
             }
@@ -32,6 +47,9 @@ export const signup = async (req, res) => {
 
         if (role === "hr" && (!company)) {
             return res.status(400).json(new ApiError(400, "Company details are required for HR"));
+        }
+        if (role === "hr" && !isString(company)) {
+            return res.status(400).json(new ApiError(400, "Company must be a string"));
         }
 
         const userExists = await findUserByEmail(email);
@@ -68,6 +86,10 @@ export const login = async (req, res) => {
 
         if (!email || !password) {
             return res.status(400).json(new ApiError(400, "Email and password required"));
+        }
+
+        if (!isString(email) || !isString(password)) {
+            return res.status(400).json(new ApiError(400, "Email and password must be strings"));
         }
 
         const user = await findUserByEmail(email);
@@ -129,6 +151,9 @@ export const forgotPassword = async (req, res) => {
         if (!email) {
             return res.status(400).json(new ApiError(400, "Email is Required"));
         }
+        if (!isString(email)) {
+            return res.status(400).json(new ApiError(400, "Email must be a string"));
+        }
         const user = await findUserByEmail(email);
 
         if (!user) {
@@ -175,6 +200,14 @@ export const resetPassword = async (req, res) => {
 
         if (!email || !otp || !newPassword) {
             return res.status(400).json(new ApiError(400, "Email, OTP and new password required"));
+        }
+
+        if (!isString(email) || !isString(newPassword)) {
+            return res.status(400).json(new ApiError(400, "Email and new password must be strings"));
+        }
+        // OTP could be number or string depending on how it's sent, but let's check for basic content
+        if (typeof otp !== "string" && typeof otp !== "number") {
+            return res.status(400).json(new ApiError(400, "OTP must be a string or number"));
         }
 
         const user = await findUserByEmail(email);

@@ -15,6 +15,14 @@ import { findByJobAndCandidate, createApplication } from "../repositories/applic
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import {
+  isString,
+  isNumber,
+  isArray,
+  isObject,
+  isDate,
+  isBoolean,
+} from "../utils/Validation.js";
 
 
 /* ================= CREATE JOB ================= */
@@ -36,31 +44,62 @@ export const createJobController = async (req, res) => {
     } = req.body;
 
     // --- VALIDATION START ---
-    if (!jobTitle) return res.status(400).json(new ApiError(400, "Job title is required"));
-    if (!companyName) return res.status(400).json(new ApiError(400, "Company name is required"));
 
-    if (!jobDescription || jobDescription.length < 5) {
+    // Existence and Type Checks
+    if (!jobTitle) return res.status(400).json(new ApiError(400, "Job title is required"));
+    if (!isString(jobTitle)) return res.status(400).json(new ApiError(400, "Job title must be a string"));
+
+    if (!companyName) return res.status(400).json(new ApiError(400, "Company name is required"));
+    if (!isString(companyName)) return res.status(400).json(new ApiError(400, "Company name must be a string"));
+
+    if (!jobDescription) return res.status(400).json(new ApiError(400, "Job description is required"));
+    if (!isString(jobDescription)) return res.status(400).json(new ApiError(400, "Job description must be a string"));
+    if (jobDescription.length < 5) {
       return res.status(400).json(new ApiError(400, "Job description must be at least 5 characters long"));
     }
 
     if (!location) return res.status(400).json(new ApiError(400, "Location is required"));
-    if (!jobType) return res.status(400).json(new ApiError(400, "Job type is required"));
+    if (!isString(location)) return res.status(400).json(new ApiError(400, "Location must be a string"));
 
-    if (!requiredSkills || !Array.isArray(requiredSkills) || requiredSkills.length === 0) {
-      return res.status(400).json(new ApiError(400, "At least one skill is required"));
+    if (!jobType) return res.status(400).json(new ApiError(400, "Job type is required"));
+    if (!isString(jobType)) return res.status(400).json(new ApiError(400, "Job type must be a string"));
+
+    if (!requiredSkills) return res.status(400).json(new ApiError(400, "Required skills are required"));
+    if (!isArray(requiredSkills) || requiredSkills.length === 0) {
+      return res.status(400).json(new ApiError(400, "At least one skill is required in an array"));
+    }
+    if (!requiredSkills.every(isString)) {
+      return res.status(400).json(new ApiError(400, "All skills must be strings"));
     }
 
     if (!lastDate) return res.status(400).json(new ApiError(400, "Last date is required"));
+    if (!isDate(lastDate)) return res.status(400).json(new ApiError(400, "Last date must be a valid date"));
 
     // Experience validation
-    if (!experience || experience.min === undefined || experience.max === undefined) {
+    if (!experience) return res.status(400).json(new ApiError(400, "Experience is required"));
+    if (!isObject(experience)) return res.status(400).json(new ApiError(400, "Experience must be an object"));
+
+    if (experience.min === undefined || experience.max === undefined) {
       return res.status(400).json(new ApiError(400, "Experience min and max are required"));
     }
-    if (Number(experience.min) < 0 || Number(experience.max) < 0) {
+    if (!isNumber(experience.min) || !isNumber(experience.max)) {
+      return res.status(400).json(new ApiError(400, "Experience min and max must be numbers"));
+    }
+    if (experience.min < 0 || experience.max < 0) {
       return res.status(400).json(new ApiError(400, "Experience cannot be negative"));
     }
-    if (Number(experience.min) > Number(experience.max)) {
+    if (experience.min > experience.max) {
       return res.status(400).json(new ApiError(400, "Minimum experience cannot be greater than maximum experience"));
+    }
+
+    // Optional Salary validation
+    if (req.body.salary) {
+      const { salary } = req.body;
+      if (!isObject(salary)) return res.status(400).json(new ApiError(400, "Salary must be an object"));
+      if (salary.min !== undefined && !isNumber(salary.min)) return res.status(400).json(new ApiError(400, "Salary min must be a number"));
+      if (salary.max !== undefined && !isNumber(salary.max)) return res.status(400).json(new ApiError(400, "Salary max must be a number"));
+      if (salary.currency !== undefined && !isString(salary.currency)) return res.status(400).json(new ApiError(400, "Salary currency must be a string"));
+      if (salary.isNegotiable !== undefined && !isBoolean(salary.isNegotiable)) return res.status(400).json(new ApiError(400, "Salary isNegotiable must be a boolean"));
     }
     // --- VALIDATION END ---
 
