@@ -4,6 +4,7 @@ import {
   getApplicationsByUser,
   findByJobAndCandidate,
   updateApplicationStatus,
+  deleteApplicationById,
 } from "../repositories/application.repository.js";
 
 import { getJobById } from "../repositories/job.repository.js";
@@ -25,7 +26,7 @@ export const applyJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
-    const { jobId } = value;
+    const { jobId, skills: reqSkills, experience: reqExperience, education: reqEducation, phone: reqPhone } = value;
     const userId = req.user._id;
 
     const job = await getJobById(jobId);
@@ -46,14 +47,81 @@ export const applyJobController = async (req, res) => {
       return res.status(409).json(new ApiError(409, "Already applied for this job"));
     }
 
+    // Use details from request body if provided, otherwise fallback to user profile
+    const applicationSkills = reqSkills || user.profile?.skills || [];
+    const applicationExperience = reqExperience !== undefined ? reqExperience : (user.profile?.experience || 0);
+    const applicationEducation = reqEducation || user.profile?.education || "Any";
+    const applicationPhone = reqPhone || user.phone || "";
+
+    /* ================= SCORING LOGIC ================= */
+    let score = 0;
+    const matchedSkills = [];
+    const missingSkills = [];
+
+    // 1. Skills Scoring (60%)
+    if (job.requiredSkills && job.requiredSkills.length > 0) {
+      const jobSkills = job.requiredSkills.map(s => s.toLowerCase());
+      const userSkills = applicationSkills.map(s => s.toLowerCase());
+
+      jobSkills.forEach(skill => {
+        if (userSkills.includes(skill)) {
+          matchedSkills.push(skill);
+        } else {
+          missingSkills.push(skill);
+        }
+      });
+
+      const skillScore = (matchedSkills.length / jobSkills.length) * 60;
+      score += skillScore;
+    } else {
+      score += 60; // No required skills, full marks for skills section
+    }
+
+    // 2. Experience Scoring (30%)
+    const minExp = job.experience?.min || 0;
+    if (applicationExperience >= minExp) {
+      score += 30;
+    } else if (minExp > 0) {
+      score += (applicationExperience / minExp) * 30;
+    } else {
+      score += 30;
+    }
+
+    // 3. Education Scoring (10%)
+    const educationPriority = {
+      "Any": 0,
+      "10th": 1,
+      "12th": 2,
+      "Diploma": 3,
+      "Graduate": 4,
+      "Post-Graduate": 5
+    };
+
+    const reqEduLevel = educationPriority[job.education] || 0;
+    const userEduLevel = educationPriority[applicationEducation] || 0;
+
+    if (userEduLevel >= reqEduLevel) {
+      score += 10;
+    } else if (reqEduLevel > 0) {
+      score += (userEduLevel / reqEduLevel) * 10;
+    } else {
+      score += 10;
+    }
+
     const application = await createApplication({
       jobId,
       userId,
-      skills: user.skills
+      skills: applicationSkills,
+      matchedSkills,
+      missingSkills,
+      experience: applicationExperience,
+      education: applicationEducation,
+      phone: applicationPhone,
+      score: Math.round(score)
     });
 
     res.status(201).json(
-      new ApiResponse(201, application, "Job applied successfully")
+      new ApiResponse(201, application, "Job applied successfully with score " + Math.round(score))
     );
   } catch (error) {
     console.error(error);
@@ -134,5 +202,29 @@ export const updateApplicationStatusController = async (req, res) => {
   } catch (error) {
     console.error("Update Status Error:", error);
     res.status(500).json(new ApiError(500, "Failed to update application status", [], error.stack));
+  }
+};
+
+/* ================ delete Application (Hr/Admin) =============== */
+export const deleteApplicationController = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+
+    if (!applicationId) {
+      return res.status(400).json(new ApiError(400, "Application ID is required"));
+    }
+
+    const application = await deleteApplicationById(applicationId);
+
+    if (!application) {
+      return res.status(404).json(new ApiError(404, "Application not found"));
+    }
+
+    res.status(200).json(
+      new ApiResponse(200, null, "Application deleted successfully")
+    );
+  } catch (error) {
+    console.error("Delete Application Error:", error);
+    res.status(500).json(new ApiError(500, "Failed to delete application", [], error.stack));
   }
 };

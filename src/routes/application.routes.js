@@ -5,7 +5,8 @@ import {
   getApplicationsForJob,
   updateApplicationStatusController,
   applyJobController,
-  getMyApplicationsController
+  getMyApplicationsController,
+  deleteApplicationController
 
 } from "../controllers/application.js";
 
@@ -40,6 +41,14 @@ router.patch(
   authMiddleware,
   authorizeRoles("admin", "hr"),
   updateApplicationStatusController
+);
+
+/* ================= DELETE APPLICATION (Hr/Admin) ================= */
+router.delete(
+  "/:applicationId",
+  authMiddleware,
+  authorizeRoles("admin", "hr"),
+  deleteApplicationController
 );
 
 export default router;

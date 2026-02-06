@@ -4,11 +4,23 @@ export const createApplication = async ({
     jobId,
     userId,
     skills,
+    matchedSkills,
+    missingSkills,
+    experience,
+    education,
+    phone,
+    score,
 }) => {
     return await Application.create({
         job: jobId,
         user: userId,
         skills,
+        matchedSkills,
+        missingSkills,
+        experience,
+        education,
+        phone,
+        score,
     });
 };
 
@@ -37,6 +49,10 @@ export const updateApplicationStatus = (id, status) => {
         { status },
         { new: true }
     );
+};
+
+export const deleteApplicationById = (id) => {
+    return Application.findByIdAndDelete(id);
 };
 
 export const getRankedApplications = async (jobId) => {

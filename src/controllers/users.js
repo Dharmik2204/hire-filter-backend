@@ -21,8 +21,13 @@ export const getProfile = async (req, res) => {
       return res.status(404).json(new ApiError(404, "User not found"));
     }
 
+    const userObj = user.toObject();
+    if (userObj.role === "hr" && typeof userObj.company === "string") {
+      userObj.company = { name: userObj.company };
+    }
+
     res.status(200).json(
-      new ApiResponse(200, user, "User profile fetched successfully")
+      new ApiResponse(200, userObj, "User profile fetched successfully")
     );
   } catch (error) {
     console.error("Get profile error:", error);
@@ -66,9 +71,14 @@ export const updateProfile = async (req, res) => {
     }
 
     if (company) {
-      Object.keys(company).forEach((key) => {
-        updateData[`company.${key}`] = company[key];
-      });
+      // If the current field in DB is a string, we need to replace it with an object
+      if (typeof req.user.company === "string") {
+        updateData.company = company; // Replace the whole field
+      } else {
+        Object.keys(company).forEach((key) => {
+          updateData[`company.${key}`] = company[key];
+        });
+      }
     }
 
     if (Object.keys(updateData).length === 0) {

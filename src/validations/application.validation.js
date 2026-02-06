@@ -9,6 +9,9 @@ export const createApplicationSchema = Joi.object({
 
     skills: Joi.array().items(Joi.string().trim()).optional(),
     resume: Joi.string().trim().optional(),
+    experience: Joi.number().min(0).optional(),
+    education: Joi.string().trim().optional(),
+    phone: Joi.string().trim().optional(),
 });
 
 export const updateApplicationSchema = Joi.object({

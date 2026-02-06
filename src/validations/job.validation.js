@@ -14,7 +14,7 @@ export const createJobSchema = Joi.object({
 
     companyName: Joi.string()
         .trim()
-        .required()
+        .optional()
         .messages({
             "string.empty": "Company name is required",
         }),

@@ -15,9 +15,21 @@ const applicationSchema = new mongoose.Schema(
     },
 
     skills: [String],
-
     matchedSkills: [String],
     missingSkills: [String],
+
+    experience: {
+      type: Number,
+      default: 0,
+    },
+
+    education: {
+      type: String,
+    },
+
+    phone: {
+      type: String,
+    },
 
     score: {
       type: Number,

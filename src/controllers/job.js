@@ -31,10 +31,21 @@ export const createJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
-    const job = await createJob({
-      ...value,
-      createdBy: req.user._id,
-    });
+    const { role, company } = req.user;
+    let jobData = { ...value, createdBy: req.user._id };
+
+    if (role === "hr") {
+      const dbCompanyName = typeof company === "string" ? company : company?.name;
+      if (!value.companyName && dbCompanyName) {
+        jobData.companyName = dbCompanyName;
+      } else if (!value.companyName && !dbCompanyName) {
+        return res.status(400).json(new ApiError(400, "HR must have a company name in profile to create a job"));
+      }
+    } else if (!value.companyName) {
+      return res.status(400).json(new ApiError(400, "Company name is required"));
+    }
+
+    const job = await createJob(jobData);
 
     res.status(201).json(
       new ApiResponse(201, job, "Job created successfully")

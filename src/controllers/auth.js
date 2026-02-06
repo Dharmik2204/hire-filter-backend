@@ -44,7 +44,7 @@ export const signup = async (req, res) => {
             email,
             password: hashedPassword,
             role,
-            company: role === "hr" ? company : undefined,
+            company: role === "hr" ? { name: company } : undefined,
         };
 
         await createUser(userPayload);
