@@ -28,13 +28,13 @@ export const signup = async (req, res) => {
 
         if (role === "admin") {
             if (adminKey !== process.env.ADMIN_SECRET_KEY) {
-                return res.status(403).json(new ApiError(403, "Invalid admin secret key"));
+                return res.status(403).json(new ApiError(403, "Invalid admin secret key", ["Invalid admin secret key"]));
             }
         }
 
         const userExists = await findUserByEmail(email);
         if (userExists) {
-            return res.status(409).json(new ApiError(409, "User already exists"));
+            return res.status(409).json(new ApiError(409, "User already exists", ["User already exists"]));
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
@@ -73,12 +73,12 @@ export const login = async (req, res) => {
 
         const user = await findUserByEmail(email);
         if (!user) {
-            return res.status(401).json(new ApiError(401, "Invalid credentials"));
+            return res.status(401).json(new ApiError(401, "Invalid credentials", ["Invalid credentials"]));
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
         if (!isMatch) {
-            return res.status(401).json(new ApiError(401, "Invalid credentials"));
+            return res.status(401).json(new ApiError(401, "Invalid credentials", ["Invalid credentials"]));
         }
 
 
@@ -189,13 +189,13 @@ export const resetPassword = async (req, res) => {
 
         // OTP missing or expired
         if (!user || !user.otp || user.otpExpiry < Date.now()) {
-            return res.status(400).json(new ApiError(400, "Invalid or expired OTP"));
+            return res.status(400).json(new ApiError(400, "Invalid or expired OTP", ["Invalid or expired OTP"]));
         }
 
         // Max attempts reached
         if (user.otpAttempts >= 3) {
             await clearOTPAndUpdatePassword(user._id, user.password);
-            return res.status(400).json(new ApiError(400, "OTP attempts exceeded. Please request a new OTP."));
+            return res.status(400).json(new ApiError(400, "OTP attempts exceeded. Please request a new OTP.", ["OTP attempts exceeded. Please request a new OTP."]));
         }
 
         // Compare OTP
@@ -203,7 +203,7 @@ export const resetPassword = async (req, res) => {
 
         if (!isOtpValid) {
             await incrementOtpAttempts(user._id);
-            return res.status(400).json(new ApiError(400, "Invalid or expired OTP"));
+            return res.status(400).json(new ApiError(400, "Invalid or expired OTP", ["Invalid or expired OTP"]));
         }
 
         // OTP correct → reset password

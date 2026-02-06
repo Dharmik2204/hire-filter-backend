@@ -32,19 +32,19 @@ export const applyJobController = async (req, res) => {
     const job = await getJobById(jobId);
 
     if (!job || job.jobStatus !== "Open") {
-      return res.status(404).json(new ApiError(404, "Job not available"));
+      return res.status(404).json(new ApiError(404, "Job not available", ["Job not available"]));
     }
 
     const user = await findUserById(req.user._id);
 
     if (!user) {
-      return res.status(404).json(new ApiError(404, "User not found"));
+      return res.status(404).json(new ApiError(404, "User not found", ["User not found"]));
     }
 
     const alreadyApplied = await findByJobAndCandidate(jobId, userId);
 
     if (alreadyApplied) {
-      return res.status(409).json(new ApiError(409, "Already applied for this job"));
+      return res.status(409).json(new ApiError(409, "Already applied for this job", ["Already applied for this job"]));
     }
 
     // Use details from request body if provided, otherwise fallback to user profile
@@ -157,7 +157,7 @@ export const getApplicationsForJob = async (req, res) => {
 
     const job = await getJobById(jobId);
     if (!job) {
-      return res.status(404).json(new ApiError(404, "Job not found"));
+      return res.status(404).json(new ApiError(404, "Job not found", ["Job not found"]));
     }
 
     const applications = await getApplicationsByJob(jobId);
@@ -193,7 +193,7 @@ export const updateApplicationStatusController = async (req, res) => {
       status);
 
     if (!updatedApplication) {
-      return res.status(404).json(new ApiError(404, "Application not found"));
+      return res.status(404).json(new ApiError(404, "Application not found", ["Application not found"]));
     }
 
     res.status(200).json(
@@ -217,7 +217,7 @@ export const deleteApplicationController = async (req, res) => {
     const application = await deleteApplicationById(applicationId);
 
     if (!application) {
-      return res.status(404).json(new ApiError(404, "Application not found"));
+      return res.status(404).json(new ApiError(404, "Application not found", ["Application not found"]));
     }
 
     res.status(200).json(

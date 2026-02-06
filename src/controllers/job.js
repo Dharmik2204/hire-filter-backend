@@ -38,11 +38,11 @@ export const createJobController = async (req, res) => {
       const dbCompanyName = typeof company === "string" ? company : company?.name;
       if (!value.companyName && dbCompanyName) {
         jobData.companyName = dbCompanyName;
-      } else if (!value.companyName && !dbCompanyName) {
-        return res.status(400).json(new ApiError(400, "HR must have a company name in profile to create a job"));
+      } else if (!value.companyName && !company?.name) {
+        return res.status(400).json(new ApiError(400, "HR must have a company name in profile to create a job", ["HR must have a company name in profile to create a job"]));
       }
     } else if (!value.companyName) {
-      return res.status(400).json(new ApiError(400, "Company name is required"));
+      return res.status(400).json(new ApiError(400, "Company name is required", ["Company name is required"]));
     }
 
     const job = await createJob(jobData);
