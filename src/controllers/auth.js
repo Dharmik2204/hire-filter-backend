@@ -39,12 +39,14 @@ export const signup = async (req, res) => {
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
+        const companyName = typeof company === "object" ? company.name : company;
+
         const userPayload = {
             name,
             email,
             password: hashedPassword,
             role,
-            company: role === "hr" ? { name: company } : undefined,
+            company: role === "hr" ? { name: companyName } : undefined,
         };
 
         await createUser(userPayload);

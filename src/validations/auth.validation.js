@@ -37,16 +37,18 @@ export const signupSchema = Joi.object({
             "any.required": "Role is required",
         }),
 
-    company: Joi.string()
-        .trim()
-        .when("role", {
-            is: "hr",
-            then: Joi.required(),
-            otherwise: Joi.optional(),
+    company: Joi.alternatives().try(
+        Joi.string().trim(),
+        Joi.object({
+            name: Joi.string().trim().required()
         })
-        .messages({
-            "any.required": "Company name is required for HR",
-        }),
+    ).when("role", {
+        is: "hr",
+        then: Joi.required(),
+        otherwise: Joi.optional(),
+    }).messages({
+        "any.required": "Company information is required for HR",
+    }),
 
     adminKey: Joi.string()
         .trim()
