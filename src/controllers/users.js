@@ -11,6 +11,7 @@ import {
 
 
 import { updateProfileSchema } from "../validations/user.validation.js";
+import { formatUserResponse } from "../utils/userFormatter.js";
 
 /* ================= GET PROFILE ================= */
 export const getProfile = async (req, res) => {
@@ -21,13 +22,10 @@ export const getProfile = async (req, res) => {
       return res.status(404).json(new ApiError(404, "User not found"));
     }
 
-    const userObj = user.toObject();
-    if (userObj.role === "hr" && typeof userObj.company === "string") {
-      userObj.company = { name: userObj.company };
-    }
+    const formattedUser = formatUserResponse(user);
 
     res.status(200).json(
-      new ApiResponse(200, userObj, "User profile fetched successfully")
+      new ApiResponse(200, formattedUser, "User profile fetched successfully")
     );
   } catch (error) {
     console.error("Get profile error:", error);
@@ -94,8 +92,10 @@ export const updateProfile = async (req, res) => {
       return res.status(404).json(new ApiError(404, "User not found"));
     }
 
+    const formattedProfile = formatUserResponse(updatedProfile);
+
     res.status(200).json(
-      new ApiResponse(200, updatedProfile, "Profile updated successfully")
+      new ApiResponse(200, formattedProfile, "Profile updated successfully")
     );
 
   } catch (error) {
