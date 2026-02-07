@@ -10,6 +10,12 @@ export const createApplication = async ({
     education,
     phone,
     score,
+    linkedinProfile,
+    portfolioWebsite,
+    workExperience,
+    projects,
+    coverLetter,
+    desiredSalary,
 }) => {
     return await Application.create({
         job: jobId,
@@ -21,6 +27,12 @@ export const createApplication = async ({
         education,
         phone,
         score,
+        linkedinProfile,
+        portfolioWebsite,
+        workExperience,
+        projects,
+        coverLetter,
+        desiredSalary,
     });
 };
 

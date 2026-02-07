@@ -10,8 +10,44 @@ export const createApplicationSchema = Joi.object({
     skills: Joi.array().items(Joi.string().trim()).optional(),
     resume: Joi.string().trim().optional(),
     experience: Joi.number().min(0).optional(),
-    education: Joi.string().trim().optional(),
     phone: Joi.string().trim().optional(),
+
+    linkedinProfile: Joi.string().uri().allow("").optional(),
+    portfolioWebsite: Joi.string().uri().allow("").optional(),
+
+    workExperience: Joi.array()
+        .items(
+            Joi.object({
+                companyName: Joi.string().trim().required(),
+                role: Joi.string().trim().required(),
+                duration: Joi.string().trim().required(),
+                accomplishments: Joi.string().trim().optional(),
+            })
+        )
+        .optional(),
+
+    education: Joi.array()
+        .items(
+            Joi.object({
+                institution: Joi.string().trim().required(),
+                degree: Joi.string().trim().required(),
+                year: Joi.string().trim().required(),
+            })
+        )
+        .optional(),
+
+    projects: Joi.array()
+        .items(
+            Joi.object({
+                projectName: Joi.string().trim().required(),
+                projectLink: Joi.string().uri().allow("").optional(),
+                description: Joi.string().trim().optional(),
+            })
+        )
+        .optional(),
+
+    coverLetter: Joi.string().trim().allow("").optional(),
+    desiredSalary: Joi.string().trim().allow("").optional(),
 });
 
 export const updateApplicationSchema = Joi.object({

@@ -26,7 +26,19 @@ export const applyJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
-    const { jobId, skills: reqSkills, experience: reqExperience, education: reqEducation, phone: reqPhone } = value;
+    const {
+      jobId,
+      skills: reqSkills,
+      experience: reqExperience,
+      education: reqEducation,
+      phone: reqPhone,
+      linkedinProfile: reqLinkedin,
+      portfolioWebsite: reqPortfolio,
+      workExperience: reqWorkExp,
+      projects: reqProjects,
+      coverLetter: reqCoverLetter,
+      desiredSalary: reqSalary
+    } = value;
     const userId = req.user._id;
 
     const job = await getJobById(jobId);
@@ -50,8 +62,14 @@ export const applyJobController = async (req, res) => {
     // Use details from request body if provided, otherwise fallback to user profile
     const applicationSkills = reqSkills || user.profile?.skills || [];
     const applicationExperience = reqExperience !== undefined ? reqExperience : (user.profile?.experience || 0);
-    const applicationEducation = reqEducation || user.profile?.education || "Any";
+    const applicationEducation = reqEducation || user.profile?.education || []; // Now an array
     const applicationPhone = reqPhone || user.phone || "";
+    const applicationLinkedin = reqLinkedin || user.profile?.linkedin || "";
+    const applicationPortfolio = reqPortfolio || user.profile?.portfolio || "";
+    const applicationWorkExp = reqWorkExp || [];
+    const applicationProjects = reqProjects || [];
+    const applicationCoverLetter = reqCoverLetter || "";
+    const applicationSalary = reqSalary || "";
 
     /* ================= SCORING LOGIC ================= */
     let score = 0;
@@ -97,13 +115,25 @@ export const applyJobController = async (req, res) => {
       "Post-Graduate": 5
     };
 
+    // Note: applicationEducation is now an array of objects. 
+    // For scoring, we might want to take the highest level or just simple check if any matches.
+    // However, if job.education is a string like "Graduate", we check if any education item matches.
     const reqEduLevel = educationPriority[job.education] || 0;
-    const userEduLevel = educationPriority[applicationEducation] || 0;
+    let maxUserEduLevel = 0;
 
-    if (userEduLevel >= reqEduLevel) {
+    if (Array.isArray(applicationEducation)) {
+      applicationEducation.forEach(edu => {
+        const level = educationPriority[edu.degree] || 0;
+        if (level > maxUserEduLevel) maxUserEduLevel = level;
+      });
+    } else if (typeof applicationEducation === 'string') {
+      maxUserEduLevel = educationPriority[applicationEducation] || 0;
+    }
+
+    if (maxUserEduLevel >= reqEduLevel) {
       score += 10;
     } else if (reqEduLevel > 0) {
-      score += (userEduLevel / reqEduLevel) * 10;
+      score += (maxUserEduLevel / reqEduLevel) * 10;
     } else {
       score += 10;
     }
@@ -117,7 +147,13 @@ export const applyJobController = async (req, res) => {
       experience: applicationExperience,
       education: applicationEducation,
       phone: applicationPhone,
-      score: Math.round(score)
+      score: Math.round(score),
+      linkedinProfile: applicationLinkedin,
+      portfolioWebsite: applicationPortfolio,
+      workExperience: applicationWorkExp,
+      projects: applicationProjects,
+      coverLetter: applicationCoverLetter,
+      desiredSalary: applicationSalary
     });
 
     res.status(201).json(

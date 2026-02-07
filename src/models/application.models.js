@@ -18,13 +18,43 @@ const applicationSchema = new mongoose.Schema(
     matchedSkills: [String],
     missingSkills: [String],
 
+    linkedinProfile: {
+      type: String,
+      trim: true,
+    },
+    portfolioWebsite: {
+      type: String,
+      trim: true,
+    },
+
+    workExperience: [
+      {
+        companyName: { type: String, trim: true },
+        role: { type: String, trim: true },
+        duration: { type: String, trim: true },
+        accomplishments: { type: String, trim: true },
+      },
+    ],
+
+    education: [
+      {
+        institution: { type: String, trim: true },
+        degree: { type: String, trim: true },
+        year: { type: String, trim: true },
+      },
+    ],
+
+    projects: [
+      {
+        projectName: { type: String, trim: true },
+        projectLink: { type: String, trim: true },
+        description: { type: String, trim: true },
+      },
+    ],
+
     experience: {
       type: Number,
       default: 0,
-    },
-
-    education: {
-      type: String,
     },
 
     phone: {
@@ -37,6 +67,16 @@ const applicationSchema = new mongoose.Schema(
     },
 
     resume: String,
+
+    coverLetter: {
+      type: String,
+      trim: true,
+    },
+
+    desiredSalary: {
+      type: String,
+      trim: true,
+    },
 
     status: {
       type: String,
