@@ -9,6 +9,8 @@ import {
   getJobByIdInternal,
   hardDeleteJob
 } from "../repositories/job.repository.js";
+import mongoose from "mongoose";
+
 
 import { findUserById } from "../repositories/user.repository.js";
 import { findByJobAndCandidate, createApplication } from "../repositories/application.repository.js";
@@ -67,6 +69,11 @@ export const updateJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
     }
 
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json(new ApiError(400, "Invalid Job ID format"));
+    }
+
+
     const { error, value } = updateJobSchema.validate(req.body, { abortEarly: false });
 
     if (error) {
@@ -112,6 +119,11 @@ export const deleteJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
     }
 
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json(new ApiError(400, "Invalid Job ID format"));
+    }
+
+
     const job = await getJobByIdInternal(req.params.id);
 
     if (!job) {
@@ -150,6 +162,11 @@ export const deleteHardJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
     }
 
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json(new ApiError(400, "Invalid Job ID format"));
+    }
+
+
     const job = await getJobByIdInternal(req.params.id);
 
     if (!job) {
@@ -187,6 +204,11 @@ export const getJobByIdController = async (req, res) => {
     if (!req.params.id) {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
     }
+
+    if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+      return res.status(400).json(new ApiError(400, "Invalid Job ID format"));
+    }
+
 
     const job = await getJobById(req.params.id);
 
