@@ -8,6 +8,9 @@ import {
   updateUser,
   deleteUser,
 } from "../repositories/user.repository.js";
+import { deleteApplicationsByUserId } from "../repositories/application.repository.js";
+import { deleteJobsByUserId } from "../repositories/job.repository.js";
+
 
 
 import { updateProfileSchema } from "../validations/user.validation.js";
@@ -107,20 +110,44 @@ export const updateProfile = async (req, res) => {
 /* ================= DELETE PROFILE ================= */
 export const deleteProfile = async (req, res) => {
   try {
-    const user = await deleteUser(req.user._id);
+    const userId = req.user._id;
+
+    // 1. Find user to get Cloudinary IDs
+    const user = await findUserById(userId);
 
     if (!user) {
       return res.status(404).json(new ApiError(404, "User not found"));
     }
 
+    // 2. Clear Cloudinary files
+    if (user.profile?.resume?.public_id) {
+      await cloudinary.uploader.destroy(user.profile.resume.public_id, { resource_type: "raw" });
+    }
+
+    if (user.profile?.image?.public_id) {
+      await cloudinary.uploader.destroy(user.profile.image.public_id);
+    }
+
+    // 3. Delete associated data
+    await deleteApplicationsByUserId(userId);
+    await deleteJobsByUserId(userId);
+
+    // 4. Delete the User record
+    const result = await deleteUser(userId);
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json(new ApiError(404, "User not found"));
+    }
+
     res.status(200).json(
-      new ApiResponse(200, null, "User deleted successfully")
+      new ApiResponse(200, null, "User profile and associated data deleted successfully")
     );
   } catch (error) {
     console.error("Delete profile error:", error);
     res.status(500).json(new ApiError(500, "Failed to delete profile", [], error.stack));
   }
 };
+
 /* ===============uploadResume==========  */
 
 

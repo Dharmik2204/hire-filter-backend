@@ -67,6 +67,10 @@ export const deleteApplicationById = (id) => {
     return Application.findByIdAndDelete(id);
 };
 
+export const deleteApplicationsByUserId = (userId) => {
+    return Application.deleteMany({ user: userId });
+};
+
 export const getRankedApplications = async (jobId) => {
     return await Application.find({ job: jobId })
         .populate("user", "name email")

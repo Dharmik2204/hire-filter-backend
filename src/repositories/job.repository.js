@@ -110,6 +110,10 @@ export const hardDeleteJob = (id) => {
   );
 };
 
+export const deleteJobsByUserId = (userId) => {
+  return Job.deleteMany({ createdBy: userId });
+};
+
 /* ================= COUNTERS ================= */
 
 export const incrementJobViews = (id) => {
