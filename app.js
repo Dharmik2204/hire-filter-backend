@@ -11,6 +11,21 @@ import userRoute from "./src/routes/users.routes.js";
 const app = express();
 
 app.use(express.json());
+
+// JSON Syntax Error Handler
+app.use((err, req, res, next) => {
+    if (err instanceof SyntaxError && err.status === 400 && 'body' in err) {
+        return res.status(400).json({
+            statusCode: 400,
+            success: false,
+            message: "Invalid JSON syntax in request body",
+            errors: [err.message],
+            data: null
+        });
+    }
+    next();
+});
+
 app.use(cors());
 
 app.use("/api/auth", authRoutes);

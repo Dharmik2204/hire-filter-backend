@@ -55,10 +55,20 @@ export const createJobSchema = Joi.object({
     }).required(),
 
     salary: Joi.object({
-        min: Joi.number().min(0).default(0),
-        max: Joi.number().min(Joi.ref("min")).default(0),
+        min: Joi.number().min(0).required().messages({
+            "number.base": "Salary min must be a number",
+            "number.min": "Salary min cannot be negative",
+            "any.required": "Salary min is required",
+        }),
+        max: Joi.number().min(Joi.ref("min")).required().messages({
+            "number.base": "Salary max must be a number",
+            "number.min": "Salary max cannot be less than min salary",
+            "any.required": "Salary max is required",
+        }),
         currency: Joi.string().trim().default("INR"),
         isNegotiable: Joi.boolean().default(false),
+    }).required().messages({
+        "any.required": "Salary information is required",
     }),
 
     requiredSkills: Joi.array()
@@ -71,7 +81,11 @@ export const createJobSchema = Joi.object({
 
     education: Joi.string()
         .valid("Any", "10th", "12th", "Diploma", "Graduate", "Post-Graduate")
-        .default("Any"),
+        .required()
+        .messages({
+            "any.only": "Education must be one of: Any, 10th, 12th, Diploma, Graduate, Post-Graduate",
+            "any.required": "Education level is required",
+        }),
 
     openings: Joi.number().integer().min(1).default(1),
     noticePeriod: Joi.number().integer().min(0).default(0),
