@@ -80,6 +80,10 @@ export const updateJobController = async (req, res) => {
       return res.status(404).json(new ApiError(404, "Job not found"));
     }
 
+    if (job && job._id.toString() !== req.params.id) {
+      return res.status(404).json(new ApiError(404, "Job Id is not match"));
+    }
+
     if (
       req.user.role !== "admin" &&
       job.createdBy.toString() !== req.user._id.toString()
@@ -112,6 +116,10 @@ export const deleteJobController = async (req, res) => {
 
     if (!job) {
       return res.status(404).json(new ApiError(404, "Job not found"));
+    }
+
+    if (job && job._id.toString() !== req.params.id) {
+      return res.status(404).json(new ApiError(404, "Job Id is not match"));
     }
 
     if (
@@ -148,6 +156,10 @@ export const deleteHardJobController = async (req, res) => {
       return res.status(404).json(new ApiError(404, "Job not found"));
     }
 
+    if (job && job._id.toString() !== req.params.id) {
+      return res.status(404).json(new ApiError(404, "Job Id is not match"));
+    }
+
     if (
       req.user.role !== "admin" &&
       job.createdBy.toString() !== req.user._id.toString()
@@ -180,6 +192,10 @@ export const getJobByIdController = async (req, res) => {
 
     if (!job) {
       return res.status(404).json(new ApiError(404, "Job not found"));
+    }
+
+    if (job && job._id.toString() !== req.params.id) {
+      return res.status(404).json(new ApiError(404, "Job Id is not match"));
     }
 
     await incrementJobViews(job._id);
