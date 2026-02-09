@@ -21,8 +21,7 @@ import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
 
 export const applyJobController = async (req, res) => {
   try {
-    const { jobId } = req.params;
-    if (jobId && !mongoose.Types.ObjectId.isValid(jobId)) {
+    if (req.params.jobId && !mongoose.Types.ObjectId.isValid(req.params.jobId)) {
       return res.status(400).json(new ApiError(400, "Job ID is not valid"));
     }
 
@@ -189,8 +188,7 @@ export const getMyApplicationsController = async (req, res) => {
 /* ================ get All Application (Hr/Admin)=============== */
 export const getApplicationsForJob = async (req, res) => {
   try {
-    const { jobId } = req.params;
-    if (jobId && !mongoose.Types.ObjectId.isValid(jobId)) {
+    if (req.params.jobId && !mongoose.Types.ObjectId.isValid(req.params.jobId)) {
       return res.status(400).json(new ApiError(400, "Job ID is not valid"));
     }
 
