@@ -213,7 +213,9 @@ export const getJobByIdController = async (req, res) => {
     const job = await getJobById(req.params.id);
 
     if (!job) {
-      return res.status(404).json(new ApiError(404, "Job not found"));
+      return res.status(200).json(
+        new ApiResponse(200, null, "No jobs available")
+      );
     }
 
     if (job && job._id.toString() !== req.params.id) {
@@ -249,6 +251,12 @@ export const getJobsController = async (req, res) => {
       page: Number(page),
       limit: Number(limit),
     });
+
+    if (jobs.length === 0) {
+      return res.status(200).json(
+        new ApiResponse(200, [], "No jobs available")
+      );
+    }
 
     res.json(
       new ApiResponse(200, jobs, "Jobs fetched successfully")
