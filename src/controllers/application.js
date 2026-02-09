@@ -6,6 +6,8 @@ import {
   updateApplicationStatus,
   deleteApplicationById,
 } from "../repositories/application.repository.js";
+import mongoose from "mongoose";
+
 
 import { getJobById } from "../repositories/job.repository.js";
 import { findUserById } from "../repositories/user.repository.js";
@@ -19,6 +21,11 @@ import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
 
 export const applyJobController = async (req, res) => {
   try {
+    const { jobId } = req.params;
+    if (jobId && !mongoose.Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json(new ApiError(400, "Job ID is not valid"));
+    }
+
     const { error, value } = createApplicationSchema.validate({ ...req.params, ...req.body }, { abortEarly: false });
 
     if (error) {
@@ -182,6 +189,11 @@ export const getMyApplicationsController = async (req, res) => {
 /* ================ get All Application (Hr/Admin)=============== */
 export const getApplicationsForJob = async (req, res) => {
   try {
+    const { jobId } = req.params;
+    if (jobId && !mongoose.Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json(new ApiError(400, "Job ID is not valid"));
+    }
+
     const { error, value } = getRankedCandidatesSchema.validate(req.params, { abortEarly: false });
 
     if (error) {
@@ -211,6 +223,10 @@ export const getApplicationsForJob = async (req, res) => {
 export const updateApplicationStatusController = async (req, res) => {
   try {
     const { applicationId } = req.params;
+    if (applicationId && !mongoose.Types.ObjectId.isValid(applicationId)) {
+      return res.status(400).json(new ApiError(400, "Application ID is not valid"));
+    }
+
     const { error, value } = updateApplicationSchema.validate(req.body, { abortEarly: false });
 
     if (error) {
@@ -245,6 +261,9 @@ export const updateApplicationStatusController = async (req, res) => {
 export const deleteApplicationController = async (req, res) => {
   try {
     const { applicationId } = req.params;
+    if (applicationId && !mongoose.Types.ObjectId.isValid(applicationId)) {
+      return res.status(400).json(new ApiError(400, "Application ID is not valid"));
+    }
 
     if (!applicationId) {
       return res.status(400).json(new ApiError(400, "Application ID is required"));

@@ -9,8 +9,18 @@ export const createApplicationSchema = Joi.object({
 
     skills: Joi.array().items(Joi.string().trim()).optional(),
     resume: Joi.string().trim().optional(),
-    experience: Joi.number().min(0).optional(),
-    phone: Joi.string().trim().optional(),
+    experience: Joi.number().min(0).required().messages({
+        "number.base": "Experience must be a number",
+        "number.min": "Experience cannot be negative",
+        "any.required": "Experience is required",
+    }),
+    phone: Joi.string()
+        .trim()
+        .required()
+        .messages({
+            "string.empty": "Phone number is required",
+            "any.required": "Phone number is required",
+        }),
 
     linkedinProfile: Joi.string().uri().allow("").optional(),
     portfolioWebsite: Joi.string().uri().allow("").optional(),
@@ -34,7 +44,12 @@ export const createApplicationSchema = Joi.object({
                 year: Joi.string().trim().required(),
             })
         )
-        .optional(),
+        .min(1)
+        .required()
+        .messages({
+            "array.min": "At least one education entry is required",
+            "any.required": "Education details are required",
+        }),
 
     projects: Joi.array()
         .items(
