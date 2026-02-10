@@ -8,12 +8,19 @@ import {
   findAttemptById,
   saveExamAnswers,
   updateExamScore,
+  getAttemptsByExamId,
+  deleteExamById,
 } from "../repositories/exam.repository.js";
 
 import { getJobById } from "../repositories/job.repository.js";
+import { updateApplicationScore } from "../repositories/application.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { formatError } from "../utils/errorHandler.js";
 import { createExamSchema, startExamSchema, submitExamSchema } from "../validations/exam.validation.js";
+
+import { generateQuestionsAI } from "../utils/gemini.utils.js";
+import { bulkInsertQuestions } from "../repositories/exam.repository.js";
 
 /* ======================
    CREATE EXAM (HR)
@@ -34,6 +41,8 @@ export const createExamController = async (req, res) => {
       questionCount,
       durationMinutes,
       passingMarks,
+      generateAI,
+      topic
     } = value;
 
     const job = await getJobById(jobId);
@@ -53,14 +62,39 @@ export const createExamController = async (req, res) => {
       questionCount,
       durationMinutes,
       passingMarks,
+      generateAI: generateAI || false
     });
 
+    if (generateAI) {
+      try {
+        const aiQuestions = await generateQuestionsAI({
+          jobTitle: job.jobTitle,
+          jobDescription: job.description + (topic ? ` Topic: ${topic}` : ""),
+          examType,
+          count: questionCount
+        });
+
+        const questionsToInsert = aiQuestions.map(q => ({
+          ...q,
+          exam: exam._id
+        }));
+
+        await bulkInsertQuestions(questionsToInsert);
+      } catch (aiError) {
+        console.error("AI Generation failed:", aiError);
+        // We could delete the exam here if we want atomic behavior, but maybe let HR edit it?
+        // For now, let's keep it and return a message.
+        return res.status(201).json(
+          new ApiResponse(201, { exam, aiError: "AI question generation failed, please add questions manually." }, "Exam created but AI failed")
+        );
+      }
+    }
+
     res.status(201).json(
-      new ApiResponse(201, exam, "Exam created successfully")
+      new ApiResponse(201, exam, "Exam created successfully " + (generateAI ? "with AI questions" : ""))
     );
   } catch (error) {
-    console.error("Create Exam Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to create exam", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to create exam"));
   }
 };
 
@@ -91,18 +125,13 @@ export const startExamController = async (req, res) => {
       return res.status(404).json(new ApiError(404, "Exam not available"));
     }
 
-    // 🎯 Fetch random questions from QuestionBank
-    const rawQuestions = await getRandomQuestions(
-      exam.examType === "mixed"
-        ? {
-          categories: ["aptitude", "reasoning", "verbal"],
-          limit: exam.questionCount,
-        }
-        : {
-          category: exam.examType,
-          limit: exam.questionCount,
-        }
-    );
+    // 🎯 Fetch random questions from QuestionBank (prioritize ones for this exam)
+    const rawQuestions = await getRandomQuestions({
+      examId,
+      category: exam.examType === "mixed" ? undefined : exam.examType,
+      categories: exam.examType === "mixed" ? ["aptitude", "reasoning", "verbal"] : undefined,
+      limit: exam.questionCount,
+    });
 
 
     // 🔒 Snapshot questions (remove correctAnswer before sending)
@@ -135,8 +164,7 @@ export const startExamController = async (req, res) => {
       }, "Exam started successfully")
     );
   } catch (error) {
-    console.error("Start Exam Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to start exam", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to start exam"));
   }
 };
 
@@ -175,8 +203,7 @@ export const submitExamController = async (req, res) => {
       new ApiResponse(200, null, "Exam submitted successfully")
     );
   } catch (error) {
-    console.error("Submit Exam Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to submit exam", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to submit exam"));
   }
 };
 
@@ -213,10 +240,18 @@ export const evaluateExamController = async (req, res) => {
       }
     }
 
+    const exam = await findExamById(attempt.examId);
+    const passingMarks = exam ? exam.passingMarks : 0;
+    const resultStatus = score >= passingMarks ? "pass" : "fail";
+
     const updatedAttempt = await updateExamScore(
       attemptId,
-      score
+      score,
+      resultStatus
     );
+
+    // Sync score to application for ranking
+    await updateApplicationScore(attempt.application, score);
 
     res.status(200).json(
       new ApiResponse(200, {
@@ -225,7 +260,56 @@ export const evaluateExamController = async (req, res) => {
       }, "Exam evaluated successfully")
     );
   } catch (error) {
-    console.error("Evaluate Exam Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to evaluate exam", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to evaluate exam"));
+  }
+};
+
+/* ======================
+   GET EXAM BY JOB (HR/USER)
+====================== */
+export const getExamByJobController = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+    const exam = await findExamByJobId(jobId);
+
+    if (!exam) {
+      return res.status(404).json(new ApiError(404, "No exam found for this job"));
+    }
+
+    res.status(200).json(new ApiResponse(200, exam, "Exam fetched successfully"));
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch exam"));
+  }
+};
+
+/* ======================
+   GET EXAM ATTEMPTS (HR)
+====================== */
+export const getExamAttemptsController = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const attempts = await getAttemptsByExamId(examId);
+
+    res.status(200).json(new ApiResponse(200, attempts, "Exam attempts fetched successfully"));
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch exam attempts"));
+  }
+};
+
+/* ======================
+   DELETE EXAM (HR)
+====================== */
+export const deleteExamController = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const exam = await deleteExamById(examId);
+
+    if (!exam) {
+      return res.status(404).json(new ApiError(404, "Exam not found"));
+    }
+
+    res.status(200).json(new ApiResponse(200, null, "Exam deleted successfully"));
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to delete exam"));
   }
 };

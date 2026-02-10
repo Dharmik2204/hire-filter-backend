@@ -17,14 +17,13 @@ import { findByJobAndCandidate, createApplication } from "../repositories/applic
 
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { formatError } from "../utils/errorHandler.js";
 import { createJobSchema, updateJobSchema, getJobsSchema } from "../validations/job.validation.js";
 
 /* ================= CREATE JOB ================= */
 
 export const createJobController = async (req, res) => {
   try {
-    console.log("createJobController hit");
-    console.log("req.body:", req.body);
 
     const { error, value } = createJobSchema.validate(req.body, { abortEarly: false });
 
@@ -53,8 +52,7 @@ export const createJobController = async (req, res) => {
       new ApiResponse(201, job, "Job created successfully")
     );
   } catch (error) {
-    console.error("createJob error:", error);
-    res.status(500).json(new ApiError(500, "Failed to create job", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to create job"));
   }
 };
 
@@ -62,8 +60,6 @@ export const createJobController = async (req, res) => {
 
 export const updateJobController = async (req, res) => {
   try {
-    console.log("updateJobController hit. ID:", req.params.id);
-    console.log("req.body:", req.body);
 
     if (!req.params.id) {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
@@ -104,8 +100,7 @@ export const updateJobController = async (req, res) => {
       new ApiResponse(200, updatedJob, "Job updated successfully")
     );
   } catch (error) {
-    console.error("updateJob error: ", error);
-    res.status(500).json(new ApiError(500, "Failed to update job", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to update job"));
   }
 };
 
@@ -113,7 +108,6 @@ export const updateJobController = async (req, res) => {
 
 export const deleteJobController = async (req, res) => {
   try {
-    console.log("deleteJobController hit. ID:", req.params.id);
 
     if (!req.params.id) {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
@@ -147,8 +141,7 @@ export const deleteJobController = async (req, res) => {
       new ApiResponse(200, null, "Job closed successfully")
     );
   } catch (error) {
-    console.error("deleteJob error:", error);
-    res.status(500).json(new ApiError(500, "Failed to delete job", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to delete job"));
   }
 };
 
@@ -156,7 +149,6 @@ export const deleteJobController = async (req, res) => {
 /* ================= DELETE JOB (Hard) ================= */
 export const deleteHardJobController = async (req, res) => {
   try {
-    console.log("deleteHardJobController hit. ID:", req.params.id);
 
     if (!req.params.id) {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
@@ -190,8 +182,7 @@ export const deleteHardJobController = async (req, res) => {
       new ApiResponse(200, null, "Job deleted successfully")
     );
   } catch (error) {
-    console.error("deleteHardJob error:", error);
-    res.status(500).json(new ApiError(500, "Failed to delete job", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to delete job"));
   }
 };
 
@@ -199,7 +190,6 @@ export const deleteHardJobController = async (req, res) => {
 
 export const getJobByIdController = async (req, res) => {
   try {
-    console.log("getJobByIdController hit. ID:", req.params.id);
 
     if (!req.params.id) {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
@@ -228,8 +218,7 @@ export const getJobByIdController = async (req, res) => {
       new ApiResponse(200, job, "Job fetched successfully")
     );
   } catch (error) {
-    console.error("get job error: ", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch job", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to fetch job"));
   }
 };
 

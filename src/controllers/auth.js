@@ -4,6 +4,7 @@ import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/sendEmail.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { formatError } from "../utils/errorHandler.js";
 import { signupSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "../validations/auth.validation.js";
 
 //signup
@@ -55,8 +56,7 @@ export const signup = async (req, res) => {
             new ApiResponse(201, null, `${role} signup successful`)
         );
     } catch (error) {
-        console.error("Signup error:", error);
-        return res.status(500).json(new ApiError(500, "Server error", [], error.stack));
+        return res.status(500).json(formatError(error, 500, "Server error"));
     }
 };
 
@@ -100,8 +100,7 @@ export const login = async (req, res) => {
         );
 
     } catch (error) {
-        console.error("Login error:", error);
-        res.status(500).json(new ApiError(500, "Server error", [], error.stack));
+        res.status(500).json(formatError(error, 500, "Server error"));
     }
 };
 
@@ -118,8 +117,7 @@ export const logout = async (req, res) => {
         );
 
     } catch (error) {
-        console.error("Logout error:", error);
-        res.status(500).json(new ApiError(500, "Logout failed", [], error.stack));
+        res.status(500).json(formatError(error, 500, "Logout failed"));
     }
 };
 
@@ -169,8 +167,7 @@ export const forgotPassword = async (req, res) => {
         );
 
     } catch (error) {
-        console.error("Forgot password error:", error);
-        res.status(500).json(new ApiError(500, "Internal Server Error", [], error.stack));
+        res.status(500).json(formatError(error, 500, "Internal Server Error"));
     }
 }
 
@@ -218,8 +215,7 @@ export const resetPassword = async (req, res) => {
         );
 
     } catch (error) {
-        console.error("Reset password error:", error);
-        return res.status(500).json(new ApiError(500, "Internal Server Error", [], error.stack));
+        return res.status(500).json(formatError(error, 500, "Internal Server Error"));
     }
 };
 

@@ -42,11 +42,6 @@ router.post(
   "/upload-resume",
   authMiddleware,
   authorizeRoles("user"),
-  (req, res, next) => {
-    console.log("Endpoint hit: /upload-resume");
-    console.log("Headers:", req.headers);
-    next();
-  },
   upload.single("resume"),
   uploadResumeController
 );
@@ -54,11 +49,6 @@ router.post(
 router.post(
   "/upload-profile-image",
   authMiddleware,
-  (req, res, next) => {
-    console.log("Endpoint hit: /upload-profile-image");
-    console.log("ALL HEADERS:", JSON.stringify(req.headers, null, 2));
-    next();
-  },
   upload.single("profileImage"),
   uploadProfileImageController
 );

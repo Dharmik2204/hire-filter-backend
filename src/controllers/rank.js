@@ -1,16 +1,12 @@
-// Assuming these services exist, otherwise this might fail.
-// Based on other controllers, it seems repositories are used more often.
-// If services/application.service doesn't exist, I might need to adjust this.
-// However, the task is to standardize responses, so I will stick to that and fix the module format.
-
-import { getRankedApplications, updateApplicationStatus } from "../repositories/application.repository.js";
-// Note: Added .js extension for consistency if it's an ESM project.
-// If service doesn't exist, I'll have to investigate further. But first let's list dir.
-
+import { getRankedApplicationsWithExamDetails, updateApplicationStatus } from "../repositories/application.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { formatError } from "../utils/errorHandler.js";
 import { updateRankStatusSchema, getRankedCandidatesSchema } from "../validations/rank.validation.js";
 
+/* ======================
+   GET RANKED CANDIDATES (HR/ADMIN)
+====================== */
 export const getRankedCandidates = async (req, res) => {
   try {
     const { error, value } = getRankedCandidatesSchema.validate(req.params, { abortEarly: false });
@@ -21,16 +17,19 @@ export const getRankedCandidates = async (req, res) => {
     }
 
     const { jobId } = value;
-    const applications = await getRankedApplications(jobId);
+    const rankedCandidates = await getRankedApplicationsWithExamDetails(jobId);
+
     res.status(200).json(
-      new ApiResponse(200, applications, "Ranked candidates fetched successfully")
+      new ApiResponse(200, rankedCandidates, "Ranked candidates fetched successfully")
     );
   } catch (error) {
-    console.error("Get Ranked Candidates Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch ranked candidates", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to fetch ranked candidates"));
   }
 };
 
+/* ======================
+   UPDATE APPLICATION STATUS (HR/ADMIN)
+====================== */
 export const updateStatus = async (req, res) => {
   try {
     const { error, value } = updateRankStatusSchema.validate(req.body, { abortEarly: false });
@@ -47,16 +46,16 @@ export const updateStatus = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Application ID is required"));
     }
 
-    const application = await updateApplicationStatus(
-      applicationId,
-      status
-    );
+    const application = await updateApplicationStatus(applicationId, status);
+
+    if (!application) {
+      return res.status(404).json(new ApiError(404, "Application not found"));
+    }
 
     res.status(200).json(
-      new ApiResponse(200, application, "Status updated successfully")
+      new ApiResponse(200, application, "Application status updated successfully")
     );
   } catch (error) {
-    console.error("Update Status Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to update status", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to update status"));
   }
 };

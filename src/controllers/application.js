@@ -13,8 +13,8 @@ import { getJobById } from "../repositories/job.repository.js";
 import { findUserById } from "../repositories/user.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
-
-import { updateApplicationSchema, createApplicationSchema } from "../validations/application.validation.js";
+import { formatError } from "../utils/errorHandler.js";
+import { createApplicationSchema, updateApplicationSchema } from "../validations/application.validation.js";
 import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
 
 /* ================= APPLY JOB & Create Application================= */
@@ -25,7 +25,7 @@ export const applyJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Job ID is not valid"));
     }
 
-    const { error, value } = createApplicationSchema.validate({ ...req.params, ...req.body }, { abortEarly: false });
+    const { error, value } = applyJobSchema.validate({ ...req.params, ...req.body }, { abortEarly: false });
 
     if (error) {
       const errorMessages = error.details.map((detail) => detail.message);
@@ -166,8 +166,7 @@ export const applyJobController = async (req, res) => {
       new ApiResponse(201, application, "Job applied successfully with score " + Math.round(score))
     );
   } catch (error) {
-    console.error(error);
-    res.status(500).json(new ApiError(500, "Apply job failed", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Apply job failed"));
   }
 };
 
@@ -180,7 +179,7 @@ export const getMyApplicationsController = async (req, res) => {
       new ApiResponse(200, applications, "Applications fetched successfully")
     );
   } catch (error) {
-    res.status(500).json(new ApiError(500, "Failed to fetch my applications", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to fetch my applications"));
   }
 };
 
@@ -212,8 +211,7 @@ export const getApplicationsForJob = async (req, res) => {
       new ApiResponse(200, applications, "Applications fetched successfully")
     );
   } catch (error) {
-    console.error("Get Applications Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch applications", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to fetch applications"));
   }
 };
 
@@ -225,7 +223,7 @@ export const updateApplicationStatusController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Application ID is not valid"));
     }
 
-    const { error, value } = updateApplicationSchema.validate(req.body, { abortEarly: false });
+    const { error, value } = updateApplicationStatusSchema.validate(req.body, { abortEarly: false });
 
     if (error) {
       const errorMessages = error.details.map((detail) => detail.message);
@@ -250,8 +248,7 @@ export const updateApplicationStatusController = async (req, res) => {
       new ApiResponse(200, updatedApplication, "Application status updated")
     );
   } catch (error) {
-    console.error("Update Status Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to update application status", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to update application status"));
   }
 };
 
@@ -277,7 +274,6 @@ export const deleteApplicationController = async (req, res) => {
       new ApiResponse(200, null, "Application deleted successfully")
     );
   } catch (error) {
-    console.error("Delete Application Error:", error);
-    res.status(500).json(new ApiError(500, "Failed to delete application", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to delete application"));
   }
 };

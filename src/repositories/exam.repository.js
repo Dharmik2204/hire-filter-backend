@@ -1,121 +1,129 @@
-// import { Exam, QuestionBank, ExamAttempt } from "../models/exam.models.js";
+import mongoose from "mongoose";
+import { Exam, QuestionBank, ExamAttempt } from "../models/exam.models.js";
 
-// /* ===========================
-//    EXAM (HR)
-// =========================== */
+/* ===========================
+   EXAM (HR)
+=========================== */
 
-// export const createExam = (data) => {
-//     return Exam.create(data);
-// };
+export const createExam = (data) => {
+    return Exam.create(data);
+};
 
-// export const findExamByJobId = (jobId) => {
-//     return Exam.findOne({ job: jobId, isActive: true });
-// };
+export const findExamByJobId = (jobId) => {
+    return Exam.findOne({ job: jobId, isActive: true });
+};
 
-// export const findExamById = (examId) => {
-//     return Exam.findById(examId);
-// };
+export const findExamById = (examId) => {
+    return Exam.findById(examId);
+};
 
-// export const deactivateExam = (examId) => {
-//     return Exam.findByIdAndUpdate(
-//         examId,
-//         { isActive: false },
-//         { new: true }
-//     );
-// };
+export const deactivateExam = (examId) => {
+    return Exam.findByIdAndUpdate(
+        examId,
+        { isActive: false },
+        { new: true }
+    );
+};
 
-// /* ===========================
-//    QUESTION BANK (GLOBAL)
-// =========================== */
+export const deleteExamById = (examId) => {
+    return Exam.findByIdAndDelete(examId);
+};
 
-// // for seeding only
-// export const bulkInsertQuestions = (questions) => {
-//     return QuestionBank.insertMany(questions);
-// };
+/* ===========================
+   QUESTION BANK (GLOBAL)
+=========================== */
 
-
-// export const getRandomQuestions = ({ category, categories, limit }) => {
-//     let match;
-
-//     if (category !== undefined) {
-//         match = { category };
-//     } else if (Array.isArray(categories)) {
-//         match = { category: { $in: categories } };
-//     } else {
-//         match = {};
-//     }
-
-//     return QuestionBank.aggregate([
-//         { $match: match },
-//         { $sample: { size: limit } }
-//     ]);
-// };
+// for seeding only
+export const bulkInsertQuestions = (questions) => {
+    return QuestionBank.insertMany(questions);
+};
 
 
-// export const getQuestionsWithAnswers = (questionIds) => {
-//     return QuestionBank.find({ _id: { $in: questionIds } });
-// };
+export const getRandomQuestions = ({ examId, category, categories, limit }) => {
+    let match = {};
 
-// /* ===========================
-//    EXAM ATTEMPT
-// =========================== */
+    if (examId) {
+        match.exam = new mongoose.Types.ObjectId(examId);
+    }
 
-// export const createExamAttempt = ({
-//     applicationId,
-//     examId,
-//     userId,
-//     questions,
-//     durationMinutes, // optional, in minutes
-// }) => {
-//     const expiresAt = new Date(Date.now() + ((durationMinutes || 60) * 60 * 1000));
-//     return ExamAttempt.create({
-//         application: applicationId,
-//         exam: examId,
-//         user: userId,
-//         questions,
-//         expiresAt,
-//     });
-// };
+    if (category !== undefined) {
+        match.category = category;
+    } else if (Array.isArray(categories)) {
+        match.category = { $in: categories };
+    }
 
-// export const findAttemptByApplicationId = (applicationId) => {
-//     return ExamAttempt.findOne({ application: applicationId });
-// };
+    return QuestionBank.aggregate([
+        { $match: match },
+        { $sample: { size: limit } }
+    ]);
+};
 
-// export const findAttemptById = (attemptId) => {
-//     return ExamAttempt.findById(attemptId);
-// };
 
-// export const saveExamAnswers = (attemptId, answers) => {
-//     return ExamAttempt.findByIdAndUpdate(
-//         attemptId,
-//         {
-//             answers,
-//             status: "submitted",
-//         },
-//         { new: true }
-//     );
-// };
+export const getQuestionsWithAnswers = (questionIds) => {
+    return QuestionBank.find({ _id: { $in: questionIds } });
+};
 
-// // keep older name for compatibility
-// export const submitExamAnswers = saveExamAnswers;
+/* ===========================
+   EXAM ATTEMPT
+=========================== */
 
-// export const updateExamScore = (attemptId, score) => {
-//     return ExamAttempt.findByIdAndUpdate(
-//         attemptId,
-//         {
-//             score,
-//             status: "evaluated",
-//         },
-//         { new: true }
-//     );
-// };
+export const createExamAttempt = ({
+    applicationId,
+    examId,
+    userId,
+    questions,
+    durationMinutes, // optional, in minutes
+}) => {
+    const expiresAt = new Date(Date.now() + ((durationMinutes || 60) * 60 * 1000));
+    return ExamAttempt.create({
+        application: applicationId,
+        exam: examId,
+        user: userId,
+        questions,
+        expiresAt,
+    });
+};
 
-// /* ===========================
-//    RANKING
-// =========================== */
+export const findAttemptByApplicationId = (applicationId) => {
+    return ExamAttempt.findOne({ application: applicationId });
+};
 
-// export const getAttemptsByExamId = (examId) => {
-//     return ExamAttempt.find({ exam: examId })
-//         .populate("user", "name email")
-//         .sort({ score: -1 });
-// };
+export const findAttemptById = (attemptId) => {
+    return ExamAttempt.findById(attemptId);
+};
+
+export const saveExamAnswers = (attemptId, answers) => {
+    return ExamAttempt.findByIdAndUpdate(
+        attemptId,
+        {
+            answers,
+            status: "submitted",
+        },
+        { new: true }
+    );
+};
+
+// keep older name for compatibility
+export const submitExamAnswers = saveExamAnswers;
+
+export const updateExamScore = (attemptId, score, result) => {
+    return ExamAttempt.findByIdAndUpdate(
+        attemptId,
+        {
+            score,
+            result,
+            status: "evaluated",
+        },
+        { new: true }
+    );
+};
+
+/* ===========================
+   RANKING
+=========================== */
+
+export const getAttemptsByExamId = (examId) => {
+    return ExamAttempt.find({ exam: examId })
+        .populate("user", "name email")
+        .sort({ score: -1 });
+};

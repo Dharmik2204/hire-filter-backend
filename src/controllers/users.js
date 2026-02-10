@@ -1,6 +1,7 @@
 import cloudinary from "../config/cloudinary.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
+import { formatError } from "../utils/errorHandler.js";
 
 
 import {
@@ -31,8 +32,7 @@ export const getProfile = async (req, res) => {
       new ApiResponse(200, formattedUser, "User profile fetched successfully")
     );
   } catch (error) {
-    console.error("Get profile error:", error);
-    res.status(500).json(new ApiError(500, "Failed to fetch profile", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to fetch profile"));
   }
 };
 
@@ -102,8 +102,7 @@ export const updateProfile = async (req, res) => {
     );
 
   } catch (error) {
-    console.error("Update profile error:", error);
-    res.status(500).json(new ApiError(500, "Failed to update profile", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to update profile"));
   }
 };
 
@@ -143,8 +142,7 @@ export const deleteProfile = async (req, res) => {
       new ApiResponse(200, null, "User profile and associated data deleted successfully")
     );
   } catch (error) {
-    console.error("Delete profile error:", error);
-    res.status(500).json(new ApiError(500, "Failed to delete profile", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Failed to delete profile"));
   }
 };
 
@@ -156,12 +154,7 @@ export const deleteProfile = async (req, res) => {
 ====================== */
 export const uploadResumeController = async (req, res) => {
   try {
-    console.log("Inside uploadResumeController");
-    console.log("req.file:", req.file);
-    console.log("req.body:", req.body);
-
     if (!req.file) {
-      console.error("No resume file found in request");
       return res.status(400).json(new ApiError(400, "Resume is required"));
     }
 
@@ -193,8 +186,7 @@ export const uploadResumeController = async (req, res) => {
     );
 
   } catch (error) {
-    console.error("Resume upload error:", error);
-    res.status(500).json(new ApiError(500, "Resume processing failed", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Resume processing failed"));
   }
 };
 
@@ -204,10 +196,6 @@ export const uploadResumeController = async (req, res) => {
 ====================== */
 export const uploadProfileImageController = async (req, res) => {
   try {
-    console.log("Inside uploadProfileImageController");
-    console.log("req.file:", req.file);
-    console.log("req.body:", req.body);
-
     if (!req.file) {
       return res.status(400).json(
         new ApiError(400, "Profile image is required")
@@ -241,7 +229,6 @@ export const uploadProfileImageController = async (req, res) => {
     );
 
   } catch (error) {
-    console.error("Profile image upload error:", error);
-    res.status(500).json(new ApiError(500, "Profile image upload failed", [], error.stack));
+    res.status(500).json(formatError(error, 500, "Profile image upload failed"));
   }
 };

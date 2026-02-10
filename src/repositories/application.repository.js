@@ -63,6 +63,14 @@ export const updateApplicationStatus = (id, status) => {
     );
 };
 
+export const updateApplicationScore = (id, score) => {
+    return Application.findByIdAndUpdate(
+        id,
+        { score },
+        { new: true }
+    );
+};
+
 export const deleteApplicationById = (id) => {
     return Application.findByIdAndDelete(id);
 };
@@ -73,8 +81,41 @@ export const deleteApplicationsByUserId = (userId) => {
 
 export const getRankedApplications = async (jobId) => {
     return await Application.find({ job: jobId })
-        .populate("user", "name email")
+        .populate("user", "name email phone")
+        .populate("job", "jobTitle companyName")
         .sort({ score: -1 });
+};
+
+export const getRankedApplicationsWithExamDetails = async (jobId) => {
+    const { ExamAttempt } = await import("../models/exam.models.js");
+
+    const applications = await Application.find({ job: jobId })
+        .populate("user", "name email phone")
+        .populate("job", "jobTitle companyName")
+        .sort({ score: -1 })
+        .lean();
+
+    // Fetch exam attempts for each application
+    const applicationsWithExams = await Promise.all(
+        applications.map(async (app) => {
+            const examAttempt = await ExamAttempt.findOne({ application: app._id })
+                .populate("exam", "title examType passingMarks durationMinutes")
+                .lean();
+
+            return {
+                ...app,
+                examAttempt: examAttempt ? {
+                    score: examAttempt.score,
+                    result: examAttempt.result,
+                    status: examAttempt.status,
+                    startedAt: examAttempt.startedAt,
+                    exam: examAttempt.exam
+                } : null
+            };
+        })
+    );
+
+    return applicationsWithExams;
 };
 
 

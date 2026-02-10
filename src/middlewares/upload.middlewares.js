@@ -6,7 +6,6 @@ import cloudinary from "../config/cloudinary.js";
 const storage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
-    console.log("Multer Storage connecting for file:", file.fieldname);
     // RESUME
     if (file.fieldname === "resume") {
       return {
@@ -31,14 +30,12 @@ const storage = new CloudinaryStorage({
 
 const fileFilter = (req, file, cb) => {
   // file filter (same logic as your local)
-  console.log("Multer fileFilter processing:", file.originalname, file.mimetype, file.fieldname);
   // resume validation
   if (file.fieldname === "resume") {
     if (
       file.mimetype === "application/pdf" ||
       file.mimetype.includes("word")
     ) {
-      console.log("Resume file accepted");
       cb(null, true);
     } else {
       console.warn("Resume file rejected: Invalid MIME type", file.mimetype);

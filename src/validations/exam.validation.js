@@ -5,10 +5,10 @@ export const createExamSchema = Joi.object({
         "any.required": "Job ID is required",
     }),
     examType: Joi.string()
-        .valid("aptitude", "reasoning", "mixed")
+        .valid("aptitude", "reasoning", "mixed", "technical")
         .required()
         .messages({
-            "any.only": "Exam type must be one of: aptitude, reasoning, mixed",
+            "any.only": "Exam type must be one of: aptitude, reasoning, mixed, technical",
             "any.required": "Exam type is required",
         }),
     title: Joi.string().trim().min(3).required().messages({
@@ -26,6 +26,8 @@ export const createExamSchema = Joi.object({
         "number.min": "Passing marks cannot be negative",
         "any.required": "Passing marks is required",
     }),
+    generateAI: Joi.boolean().default(false),
+    topic: Joi.string().trim().optional(),
 });
 
 export const startExamSchema = Joi.object({
@@ -42,7 +44,7 @@ export const submitExamSchema = Joi.object({
         .items(
             Joi.object({
                 questionId: Joi.string().trim().required(),
-                selectedOption: Joi.number().required(),
+                selectedOption: Joi.string().required(),
             })
         )
         .min(1)
