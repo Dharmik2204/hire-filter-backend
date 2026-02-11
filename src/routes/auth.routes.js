@@ -2,7 +2,7 @@ import express from "express";
 const router = express.Router();
 
 import { signup, login, logout, forgotPassword, resetPassword } from "../controllers/auth.js";
-import validateFormat from "../middlewares/userValidatition.middlewares.js";
+import validateFormat from "../middlewares/userValidation.middlewares.js";
 import { authorizeRoles, authMiddleware } from "../middlewares/authorize.middlewares.js";
 import { authLimiter } from "../middlewares/rateLimiter.middlewares.js";
 
