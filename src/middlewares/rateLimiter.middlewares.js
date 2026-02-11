@@ -2,7 +2,7 @@ import rateLimit from 'express-rate-limit';
 
 export const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 5, // 5 requests per window
+    max: 50, // 50 requests per window
     message: {
         statusCode: 429,
         success: false,
@@ -16,7 +16,7 @@ export const authLimiter = rateLimit({
 
 export const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // 100 requests per window
+    max: 300, // 300 requests per window
     message: {
         statusCode: 429,
         success: false,
