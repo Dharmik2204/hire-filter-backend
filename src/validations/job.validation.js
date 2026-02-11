@@ -109,6 +109,21 @@ export const getJobsSchema = Joi.object({
 }).unknown(true);
 
 export const updateJobSchema = createJobSchema.fork(
-    ["jobTitle", "companyName", "jobDescription", "location", "jobType", "experience", "requiredSkills", "lastDate"],
+    [
+        "jobTitle",
+        "companyName",
+        "jobDescription",
+        "location",
+        "jobType",
+        "experience",
+        "salary",
+        "requiredSkills",
+        "education",
+        "openings",
+        "noticePeriod",
+        "benefits",
+        "lastDate",
+        "jobStatus"
+    ],
     (schema) => schema.optional()
 ).min(1);
