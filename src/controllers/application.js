@@ -21,61 +21,67 @@ import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
 
 export const applyJobController = async (req, res) => {
   try {
-    if (req.params.jobId && !mongoose.Types.ObjectId.isValid(req.params.jobId)) {
+    const { jobId } = req.params;
+    const userId = req.user._id;
+
+    if (jobId && !mongoose.Types.ObjectId.isValid(jobId)) {
       return res.status(400).json(new ApiError(400, "Job ID is not valid"));
     }
 
-    const { error, value } = applyJobSchema.validate({ ...req.params, ...req.body }, { abortEarly: false });
+    // 1. Fetch Job and User first to get profile data for fallback
+    const job = await getJobById(jobId);
+    if (!job || job.jobStatus !== "Open") {
+      return res.status(404).json(new ApiError(404, "Job not available", ["Job not available"]));
+    }
+
+    const user = await findUserById(userId);
+    if (!user) {
+      return res.status(404).json(new ApiError(404, "User not found", ["User not found"]));
+    }
+
+    const alreadyApplied = await findByJobAndCandidate(jobId, userId);
+    if (alreadyApplied) {
+      return res.status(409).json(new ApiError(409, "Already applied for this job", ["Already applied for this job"]));
+    }
+
+    // 2. Merge Request Body with User Profile Data
+    // Priority: Request Body > User Profile > Default
+    const applicationData = {
+      jobId,
+      candidateId: userId.toString(),
+      skills: req.body.skills || user.profile?.skills || [],
+      experience: req.body.experience !== undefined ? req.body.experience : (user.profile?.experience || 0),
+      education: req.body.education || user.profile?.education || [],
+      phone: req.body.phone || user.phone || "",
+      linkedinProfile: req.body.linkedinProfile || user.profile?.linkedin || "",
+      portfolioWebsite: req.body.portfolioWebsite || user.profile?.portfolio || "",
+      workExperience: req.body.workExperience || [],
+      projects: req.body.projects || [],
+      coverLetter: req.body.coverLetter || "",
+      desiredSalary: req.body.desiredSalary || "",
+    };
+
+    // 3. Validate the MERGED data
+    const { error, value } = createApplicationSchema.validate(applicationData, { abortEarly: false });
 
     if (error) {
       const errorMessages = error.details.map((detail) => detail.message);
       return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
+    // Destructure validated values
     const {
-      jobId,
-      skills: reqSkills,
-      experience: reqExperience,
-      education: reqEducation,
-      phone: reqPhone,
-      linkedinProfile: reqLinkedin,
-      portfolioWebsite: reqPortfolio,
-      workExperience: reqWorkExp,
-      projects: reqProjects,
-      coverLetter: reqCoverLetter,
-      desiredSalary: reqSalary
+      skills: applicationSkills,
+      experience: applicationExperience,
+      education: applicationEducation,
+      phone: applicationPhone,
+      linkedinProfile: applicationLinkedin,
+      portfolioWebsite: applicationPortfolio,
+      workExperience: applicationWorkExp,
+      projects: applicationProjects,
+      coverLetter: applicationCoverLetter,
+      desiredSalary: applicationSalary
     } = value;
-    const userId = req.user._id;
-
-    const job = await getJobById(jobId);
-
-    if (!job || job.jobStatus !== "Open") {
-      return res.status(404).json(new ApiError(404, "Job not available", ["Job not available"]));
-    }
-
-    const user = await findUserById(req.user._id);
-
-    if (!user) {
-      return res.status(404).json(new ApiError(404, "User not found", ["User not found"]));
-    }
-
-    const alreadyApplied = await findByJobAndCandidate(jobId, userId);
-
-    if (alreadyApplied) {
-      return res.status(409).json(new ApiError(409, "Already applied for this job", ["Already applied for this job"]));
-    }
-
-    // Use details from request body if provided, otherwise fallback to user profile
-    const applicationSkills = reqSkills || user.profile?.skills || [];
-    const applicationExperience = reqExperience !== undefined ? reqExperience : (user.profile?.experience || 0);
-    const applicationEducation = reqEducation || user.profile?.education || []; // Now an array
-    const applicationPhone = reqPhone || user.phone || "";
-    const applicationLinkedin = reqLinkedin || user.profile?.linkedin || "";
-    const applicationPortfolio = reqPortfolio || user.profile?.portfolio || "";
-    const applicationWorkExp = reqWorkExp || [];
-    const applicationProjects = reqProjects || [];
-    const applicationCoverLetter = reqCoverLetter || "";
-    const applicationSalary = reqSalary || "";
 
     /* ================= SCORING LOGIC ================= */
     let score = 0;
@@ -121,9 +127,6 @@ export const applyJobController = async (req, res) => {
       "Post-Graduate": 5
     };
 
-    // Note: applicationEducation is now an array of objects. 
-    // For scoring, we might want to take the highest level or just simple check if any matches.
-    // However, if job.education is a string like "Graduate", we check if any education item matches.
     const reqEduLevel = educationPriority[job.education] || 0;
     let maxUserEduLevel = 0;
 
