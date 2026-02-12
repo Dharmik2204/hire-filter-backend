@@ -297,6 +297,85 @@ export const getExamAttemptsController = async (req, res) => {
 };
 
 /* ======================
+   GET MY EXAM RESULT (USER)
+====================== */
+export const getMyExamResult = async (req, res) => {
+  try {
+    const { examId } = req.params;
+    const userId = req.user._id;
+
+    // Find exam attempt for this user and exam
+    const attempts = await getAttemptsByExamId(examId);
+    const attempt = attempts.find(a => a.user._id.toString() === userId.toString());
+
+    if (!attempt) {
+      return res.status(404).json(new ApiError(404, "Exam attempt not found"));
+    }
+
+    if (attempt.status !== "evaluated") {
+      return res.status(200).json(
+        new ApiResponse(200, {
+          status: attempt.status,
+          message: "Result pending evaluation"
+        }, "Result pending")
+      );
+    }
+
+    // Prepare detailed response
+    // Re-fetch questions to get correct answers for comparison if needed
+    // For now, serving stored answers and score
+    res.status(200).json(
+      new ApiResponse(200, {
+        score: attempt.score,
+        status: attempt.status,
+        result: attempt.result,
+        totalMarks: attempt.questions.reduce((sum, q) => sum + q.marks, 0),
+        answers: attempt.answers,
+        detailedQuestions: attempt.questions // Includes correct answers if stored in snapshot
+      }, "Exam result fetched successfully")
+    );
+
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch exam result"));
+  }
+};
+
+/* ======================
+   UPDATE EXAM RESULT (HR/ADMIN)
+====================== */
+export const updateExamResultController = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    const { score, status, result } = req.body;
+
+    if (!attemptId) {
+      return res.status(400).json(new ApiError(400, "Attempt ID is required"));
+    }
+
+    // Update Exam Attempt
+    // Assuming a new repository function `updateExamAttemptResult` exists or reusing updateExamScore
+    // We added updateExamAttemptResult in repository
+    const { updateExamAttemptResult } = await import("../repositories/exam.repository.js");
+
+    const updatedAttempt = await updateExamAttemptResult(attemptId, score, status, result);
+
+    if (!updatedAttempt) {
+      return res.status(404).json(new ApiError(404, "Exam attempt not found"));
+    }
+
+    // Sync with Application
+    await updateApplicationScore(updatedAttempt.application, score);
+
+    res.status(200).json(
+      new ApiResponse(200, updatedAttempt, "Exam result updated successfully")
+    );
+
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to update exam result"));
+  }
+};
+
+/* ======================
    DELETE EXAM (HR)
 ====================== */
 export const deleteExamController = async (req, res) => {

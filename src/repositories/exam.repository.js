@@ -118,6 +118,18 @@ export const updateExamScore = (attemptId, score, result) => {
     );
 };
 
+export const updateExamAttemptResult = (attemptId, score, status, result) => {
+    return ExamAttempt.findByIdAndUpdate(
+        attemptId,
+        {
+            score,
+            status,
+            result,
+        },
+        { new: true }
+    );
+};
+
 /* ===========================
    RANKING
 =========================== */

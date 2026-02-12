@@ -118,4 +118,16 @@ export const getRankedApplicationsWithExamDetails = async (jobId) => {
     return applicationsWithExams;
 };
 
+export const updateApplicationRanks = async (rankings) => {
+    // rankings = [{ _id: applicationId, rank: 1 }, ... ]
+    const bulkOps = rankings.map(({ _id, rank }) => ({
+        updateOne: {
+            filter: { _id },
+            update: { $set: { rank } }
+        }
+    }));
+
+    return Application.bulkWrite(bulkOps);
+};
+
 

@@ -2,7 +2,7 @@ import { getRankedApplicationsWithExamDetails, updateApplicationStatus } from ".
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { formatError } from "../utils/errorHandler.js";
-import { updateRankStatusSchema, getRankedCandidatesSchema } from "../validations/rank.validation.js";
+import { updateRankStatusSchema, getRankedCandidatesSchema, assignRankSchema } from "../validations/rank.validation.js";
 
 /* ======================
    GET RANKED CANDIDATES (HR/ADMIN)
@@ -57,5 +57,63 @@ export const updateStatus = async (req, res) => {
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to update status"));
+  }
+};
+
+/* ======================
+   ASSIGN RANK (HR/ADMIN)
+====================== */
+export const assignRank = async (req, res) => {
+  try {
+    const { error, value } = assignRankSchema.validate(req.body, { abortEarly: false });
+
+    if (error) {
+      const errorMessages = error.details.map((detail) => detail.message);
+      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
+    }
+
+    const { rankings } = value;
+    const { updateApplicationRanks } = await import("../repositories/application.repository.js");
+
+    await updateApplicationRanks(rankings);
+
+    res.status(200).json(
+      new ApiResponse(200, null, "Ranks assigned successfully")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to assign ranks"));
+  }
+};
+
+/* ======================
+   GET PUBLIC RANK LIST (USER)
+====================== */
+export const getPublicRankList = async (req, res) => {
+  try {
+    const { jobId } = req.params;
+
+    // Validate Job ID - Basic check, could be improved with mongoose.isValidObjectId
+    if (!jobId) {
+      return res.status(400).json(new ApiError(400, "Job ID is required"));
+    }
+
+    // Reuse existing repository function
+    const rankedCandidates = await getRankedApplicationsWithExamDetails(jobId);
+
+    // Filter for ranked candidates only (rank > 0) and sanitize data
+    const publicRankList = rankedCandidates
+      .filter(app => app.rank > 0)
+      .sort((a, b) => a.rank - b.rank)
+      .map(app => ({
+        rank: app.rank,
+        maskedName: app.user.name.split(" ")[0] + "***", // Masked Name
+        score: app.examAttempt ? app.examAttempt.score : app.score
+      }));
+
+    res.status(200).json(
+      new ApiResponse(200, publicRankList, "Rank list fetched successfully")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch rank list"));
   }
 };

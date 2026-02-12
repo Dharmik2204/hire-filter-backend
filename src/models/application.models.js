@@ -66,6 +66,11 @@ const applicationSchema = new mongoose.Schema(
       default: 0,
     },
 
+    rank: {
+      type: Number,
+      default: 0, // 0 means unranked
+    },
+
     resume: String,
 
     coverLetter: {
@@ -105,5 +110,8 @@ applicationSchema.index(
   { job: 1, user: 1 },
   { unique: true }
 );
+
+// Optimize rank queries
+applicationSchema.index({ job: 1, rank: 1 });
 
 export const Application = mongoose.model("Application", applicationSchema);
