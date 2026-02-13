@@ -86,13 +86,20 @@ export const getRankedApplications = async (jobId) => {
         .sort({ score: -1 });
 };
 
-export const getRankedApplicationsWithExamDetails = async (jobId) => {
+export const getRankedApplicationsWithExamDetails = async (jobId, page = 1, limit = 10) => {
     const { ExamAttempt } = await import("../models/exam.models.js");
+
+    const skip = (page - 1) * limit;
+
+    // Get total count for pagination metadata
+    const total = await Application.countDocuments({ job: jobId });
 
     const applications = await Application.find({ job: jobId })
         .populate("user", "name email phone")
         .populate("job", "jobTitle companyName")
-        .sort({ score: -1 })
+        .sort({ score: -1 }) // Sort by score descending (highest first)
+        .skip(skip)
+        .limit(limit)
         .lean();
 
     // Fetch exam attempts for each application
@@ -115,14 +122,19 @@ export const getRankedApplicationsWithExamDetails = async (jobId) => {
         })
     );
 
-    return applicationsWithExams;
+    return {
+        candidates: applicationsWithExams,
+        total,
+        page,
+        totalPages: Math.ceil(total / limit)
+    };
 };
 
 export const updateApplicationRanks = async (rankings) => {
-    // rankings = [{ _id: applicationId, rank: 1 }, ... ]
-    const bulkOps = rankings.map(({ _id, rank }) => ({
+    // rankings = [{ applicationId: "...", rank: 1 }, ... ]
+    const bulkOps = rankings.map(({ applicationId, rank }) => ({
         updateOne: {
-            filter: { _id },
+            filter: { _id: applicationId },
             update: { $set: { rank } }
         }
     }));

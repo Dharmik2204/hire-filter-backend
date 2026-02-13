@@ -17,10 +17,13 @@ export const getRankedCandidates = async (req, res) => {
     }
 
     const { jobId } = value;
-    const rankedCandidates = await getRankedApplicationsWithExamDetails(jobId);
+    const { page = 1, limit = 10 } = req.query; // Pagination params
+
+    // Pass pagination to repository
+    const result = await getRankedApplicationsWithExamDetails(jobId, parseInt(page), parseInt(limit));
 
     res.status(200).json(
-      new ApiResponse(200, rankedCandidates, "Ranked candidates fetched successfully")
+      new ApiResponse(200, result, "Ranked candidates fetched successfully")
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch ranked candidates"));
@@ -91,19 +94,26 @@ export const assignRank = async (req, res) => {
 export const getPublicRankList = async (req, res) => {
   try {
     const { jobId } = req.params;
+    const { page = 1, limit = 10 } = req.query;
 
     // Validate Job ID - Basic check, could be improved with mongoose.isValidObjectId
     if (!jobId) {
       return res.status(400).json(new ApiError(400, "Job ID is required"));
     }
 
-    // Reuse existing repository function
-    const rankedCandidates = await getRankedApplicationsWithExamDetails(jobId);
+    // Reuse existing repository function with pagination
+    const result = await getRankedApplicationsWithExamDetails(jobId, parseInt(page), parseInt(limit));
 
     // Filter for ranked candidates only (rank > 0) and sanitize data
-    const publicRankList = rankedCandidates
+    // Note: If repository returns paginated object, we need to map candidates inside it.
+    // Assuming repository now returns { candidates: [], total, page, pages }
+
+    // If we haven't updated repo yet, this will break. 
+    // We should update repo first usually, but since we're here... 
+    // The repo update is next step. We assume it returns the structured object.
+
+    const publicCandidates = result.candidates
       .filter(app => app.rank > 0)
-      .sort((a, b) => a.rank - b.rank)
       .map(app => ({
         rank: app.rank,
         maskedName: app.user.name.split(" ")[0] + "***", // Masked Name
@@ -111,7 +121,12 @@ export const getPublicRankList = async (req, res) => {
       }));
 
     res.status(200).json(
-      new ApiResponse(200, publicRankList, "Rank list fetched successfully")
+      new ApiResponse(200, {
+        candidates: publicCandidates,
+        total: result.total,
+        page: result.page,
+        totalPages: result.totalPages
+      }, "Rank list fetched successfully")
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch rank list"));

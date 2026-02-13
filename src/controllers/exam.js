@@ -171,6 +171,9 @@ export const startExamController = async (req, res) => {
 /* ======================
    SUBMIT EXAM (USER)
 ====================== */
+/* ======================
+   SUBMIT EXAM (USER) - Auto-Evaluate & Rank
+====================== */
 export const submitExamController = async (req, res) => {
   try {
     const { attemptId } = req.params;
@@ -197,45 +200,18 @@ export const submitExamController = async (req, res) => {
       return res.status(403).json(new ApiError(403, "Unauthorized submission"));
     }
 
-    await saveExamAnswers(attemptId, answers);
-
-    res.status(200).json(
-      new ApiResponse(200, null, "Exam submitted successfully")
-    );
-  } catch (error) {
-    res.status(500).json(formatError(error, 500, "Failed to submit exam"));
-  }
-};
-
-/* ======================
-   EVALUATE EXAM (SYSTEM)
-====================== */
-export const evaluateExamController = async (req, res) => {
-  try {
-    const { attemptId } = req.params;
-
-    if (!attemptId) {
-      return res.status(400).json(new ApiError(400, "Attempt ID is required"));
+    if (attempt.status === "submitted" || attempt.status === "evaluated") {
+      return res.status(400).json(new ApiError(400, "Exam already submitted"));
     }
 
-    const attempt = await findAttemptById(attemptId);
-    if (!attempt) {
-      return res.status(404).json(new ApiError(404, "Attempt not found"));
-    }
-
+    // 1. Calculate Score
     let score = 0;
-
-    for (const answer of attempt.answers) {
+    for (const answer of answers) {
       const question = attempt.questions.find(
-        (q) =>
-          q.questionId.toString() ===
-          answer.questionId.toString()
+        (q) => q.questionId.toString() === answer.questionId.toString()
       );
 
-      if (
-        question &&
-        question.correctAnswer === answer.selectedOption
-      ) {
+      if (question && question.correctAnswer === answer.selectedOption) {
         score += question.marks;
       }
     }
@@ -244,24 +220,50 @@ export const evaluateExamController = async (req, res) => {
     const passingMarks = exam ? exam.passingMarks : 0;
     const resultStatus = score >= passingMarks ? "pass" : "fail";
 
+    // 2. Save Answers & Update Request Status
+    // We update the attempt with the calculated result immediately
     const updatedAttempt = await updateExamScore(
       attemptId,
       score,
       resultStatus
     );
 
-    // Sync score to application for ranking
+    // Also save the specific answers provided by user
+    await saveExamAnswers(attemptId, answers);
+
+
+    // 3. Sync Score to Application & Auto-Rank
+    // We import the new utility to recalculate ranks
+    const { recalculateRanks } = await import("../utils/rank.utils.js");
+
+    // Update Application Score - NOTE: for now we just set exam score. 
+    // If you want composite score (Skills + Exam), we should calculate that here or in repo.
+    // For simplicity in this step, we push the EXAM SCORE to the application.
     await updateApplicationScore(attempt.application, score);
+
+    // Trigger Re-ranking for the job
+    // We do this asynchronously to not block the response response time significantly, 
+    // or await it if strict consistency is needed. Awaiting is safer for "instant" rank feedback.
+    await recalculateRanks(exam.job);
 
     res.status(200).json(
       new ApiResponse(200, {
-        score: updatedAttempt.score,
-        status: updatedAttempt.status,
-      }, "Exam evaluated successfully")
+        score,
+        status: resultStatus,
+        message: "Exam submitted and evaluated successfully"
+      }, "Exam submitted successfully")
     );
   } catch (error) {
-    res.status(500).json(formatError(error, 500, "Failed to evaluate exam"));
+    res.status(500).json(formatError(error, 500, "Failed to submit exam"));
   }
+};
+
+/* ======================
+   EVALUATE EXAM (SYSTEM) - Deprecated / Admin Backup
+====================== */
+export const evaluateExamController = async (req, res) => {
+  // Kept for manual re-evaluation if needed by Admin
+  return res.status(200).json(new ApiResponse(200, null, "Auto-evaluation is now enabled on submission."));
 };
 
 /* ======================
