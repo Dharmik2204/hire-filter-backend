@@ -9,6 +9,7 @@ import application from "./src/routes/application.routes.js";
 import userRoute from "./src/routes/users.routes.js";
 import examRoutes from "./src/routes/exam.routes.js";
 import rankRoutes from "./src/routes/rank.routes.js";
+import messageRoutes from "./src/routes/message.routes.js";
 import healthRoutes from "./src/routes/health.routes.js";
 
 const app = express();
@@ -40,5 +41,6 @@ app.use("/api/jobs", jobRoutes);
 app.use("/api/application", application);
 app.use("/api/exams", examRoutes);
 app.use("/api/ranks", rankRoutes);
+app.use("/api/messages", messageRoutes);
 
 export default app;

@@ -33,6 +33,9 @@ export const getRankedCandidates = async (req, res) => {
 /* ======================
    UPDATE APPLICATION STATUS (HR/ADMIN)
 ====================== */
+/* ======================
+   UPDATE APPLICATION STATUS (HR/ADMIN)
+====================== */
 export const updateStatus = async (req, res) => {
   try {
     const { error, value } = updateRankStatusSchema.validate(req.body, { abortEarly: false });
@@ -53,6 +56,32 @@ export const updateStatus = async (req, res) => {
 
     if (!application) {
       return res.status(404).json(new ApiError(404, "Application not found"));
+    }
+
+    // 🔔 SEND NOTIFICATION IF HIRED
+    if (status === "hired") {
+      try {
+        const { createMessage } = await import("../repositories/message.repository.js");
+        const { getIO } = await import("../socket/socket.js");
+
+        const messageContent = `Congratulations! You have been hired for the position of ${application.job.jobTitle} at ${application.job.companyName}. HR will contact you shortly.`;
+
+        // Create system message
+        const message = await createMessage({
+          sender: req.user._id, // Sender is the HR/Admin who updated status
+          receiver: application.user._id,
+          content: messageContent,
+          type: "notification"
+        });
+
+        // Emit real-time event
+        const io = getIO();
+        io.to(application.user._id.toString()).emit("notification", message);
+
+      } catch (notifyError) {
+        console.error("Failed to send hiring notification:", notifyError);
+        // Don't fail the request, just log it
+      }
     }
 
     res.status(200).json(
