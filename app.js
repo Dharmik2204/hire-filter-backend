@@ -43,4 +43,7 @@ app.use("/api/exams", examRoutes);
 app.use("/api/ranks", rankRoutes);
 app.use("/api/messages", messageRoutes);
 
+import { globalErrorHandler } from "./src/middlewares/error.middlewares.js";
+app.use(globalErrorHandler);
+
 export default app;

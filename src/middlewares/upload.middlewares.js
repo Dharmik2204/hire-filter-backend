@@ -1,6 +1,7 @@
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../config/cloudinary.js";
+import { ApiError } from "../utils/ApiError.js";
 
 // cloudinary storage
 const storage = new CloudinaryStorage({
@@ -24,7 +25,7 @@ const storage = new CloudinaryStorage({
       };
     }
 
-    throw new Error("Invalid upload field");
+    throw new ApiError(400, "Invalid upload field");
   },
 });
 
@@ -39,7 +40,7 @@ const fileFilter = (req, file, cb) => {
       cb(null, true);
     } else {
       console.warn("Resume file rejected: Invalid MIME type", file.mimetype);
-      cb(new Error("Only PDF or DOC/DOCX allowed for resume"));
+      cb(new ApiError(400, "Only PDF or DOC/DOCX allowed for resume"), false);
     }
   }
 
@@ -52,13 +53,13 @@ const fileFilter = (req, file, cb) => {
     ) {
       cb(null, true);
     } else {
-      cb(new Error("Only JPG, PNG, WEBP images allowed"));
+      cb(new ApiError(400, "Only JPG, PNG, WEBP images allowed"), false);
     }
   }
 
   else {
     console.warn("Unsupported file field:", file.fieldname);
-    cb(new Error("Unsupported file field"));
+    cb(new ApiError(400, "Unsupported file field"), false);
   }
 };
 
