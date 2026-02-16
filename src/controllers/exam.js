@@ -206,17 +206,25 @@ export const submitExamController = async (req, res) => {
 
     // 1. Calculate Score
     let score = 0;
-    for (const answer of answers) {
-      const question = attempt.questions.find(
-        (q) => q.questionId.toString() === answer.questionId.toString()
-      );
+    if (attempt.questions && Array.isArray(attempt.questions)) {
+      for (const answer of answers) {
+        // Safe navigation for questionId
+        const question = attempt.questions.find(
+          (q) => q.questionId && answer.questionId && q.questionId.toString() === answer.questionId.toString()
+        );
 
-      if (question && question.correctAnswer === answer.selectedOption) {
-        score += question.marks;
+        if (question && question.correctAnswer === answer.selectedOption) {
+          score += (question.marks || 1);
+        }
       }
     }
 
-    const exam = await findExamById(attempt.examId);
+    const exam = await findExamById(attempt.exam); // Ensure we use correct field 'exam' from attempt model
+    if (!exam) {
+      // Fallback or error if exam definition is missing, but we should probably still save the attempt
+      console.error(`Exam definition not found for attempt ${attemptId}`);
+    }
+
     const passingMarks = exam ? exam.passingMarks : 0;
     const resultStatus = score >= passingMarks ? "pass" : "fail";
 
@@ -239,12 +247,16 @@ export const submitExamController = async (req, res) => {
     // Update Application Score - NOTE: for now we just set exam score. 
     // If you want composite score (Skills + Exam), we should calculate that here or in repo.
     // For simplicity in this step, we push the EXAM SCORE to the application.
-    await updateApplicationScore(attempt.application, score);
+    if (attempt.application) {
+      await updateApplicationScore(attempt.application, score);
+    }
 
     // Trigger Re-ranking for the job
     // We do this asynchronously to not block the response response time significantly, 
     // or await it if strict consistency is needed. Awaiting is safer for "instant" rank feedback.
-    await recalculateRanks(exam.job);
+    if (exam && exam.job) {
+      await recalculateRanks(exam.job);
+    }
 
     res.status(200).json(
       new ApiResponse(200, {
