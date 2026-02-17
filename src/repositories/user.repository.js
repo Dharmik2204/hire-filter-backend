@@ -27,6 +27,10 @@ export const deleteUser = (id) => {
   return User.deleteOne({ _id: id });
 };
 
+export const findAllUsersAndHrs = () => {
+  return User.find({ role: { $in: ["user", "hr"] } }).select("-password");
+};
+
 /* ================= TOKEN ================= */
 
 export const findUserByIdAndToken = (id, token) => {

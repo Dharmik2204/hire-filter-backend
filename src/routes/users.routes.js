@@ -7,6 +7,8 @@ import {
   deleteProfile,
   uploadResumeController,
   uploadProfileImageController,
+  getAllUsersAndHrs,
+  adminDeleteUser,
 } from "../controllers/users.js";
 
 import {
@@ -58,6 +60,24 @@ router.delete(
   authMiddleware,
   authorizeRoles("user", "hr", "admin"),
   deleteProfile
+);
+
+/* =====================
+   ADMIN ROUTES
+===================== */
+
+router.get(
+  "/admin/all-users",
+  authMiddleware,
+  authorizeRoles("admin"),
+  getAllUsersAndHrs
+);
+
+router.delete(
+  "/admin/user/:id",
+  authMiddleware,
+  authorizeRoles("admin"),
+  adminDeleteUser
 );
 
 export default router;

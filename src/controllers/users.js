@@ -8,6 +8,7 @@ import {
   findUserById,
   updateUser,
   deleteUser,
+  findAllUsersAndHrs,
 } from "../repositories/user.repository.js";
 import { deleteApplicationsByUserId } from "../repositories/application.repository.js";
 import { deleteJobsByUserId } from "../repositories/job.repository.js";
@@ -143,6 +144,69 @@ export const deleteProfile = async (req, res) => {
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to delete profile"));
+  }
+};
+
+/* ================= ADMIN: GET ALL USERS & HRS ================= */
+export const getAllUsersAndHrs = async (req, res) => {
+  try {
+    const users = await findAllUsersAndHrs();
+
+    // Optional: Format users if needed, or send as is (excluding password)
+    // const formattedUsers = users.map(user => formatUserResponse(user));
+
+    res.status(200).json(
+      new ApiResponse(200, users, "All users and HRs fetched successfully")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch users"));
+  }
+};
+
+/* ================= ADMIN: DELETE USER ================= */
+export const adminDeleteUser = async (req, res) => {
+  try {
+    const { id } = req.params; // Admin provides the ID of the user to delete
+
+    // 1. Find user (to get Cloudinary IDs)
+    const user = await findUserById(id);
+
+    if (!user) {
+      return res.status(404).json(new ApiError(404, "User not found"));
+    }
+
+    // Prevent admin from deleting themselves via this route if needed, 
+    // though 'deleteProfile' handles self-deletion.
+    // If you want to prevent One Admin from deleting Another Admin:
+    if (user.role === 'admin') {
+      return res.status(403).json(new ApiError(403, "Cannot delete another admin account"));
+    }
+
+    // 2. Clear Cloudinary files
+    if (user.profile?.resume?.public_id) {
+      await cloudinary.uploader.destroy(user.profile.resume.public_id, { resource_type: "raw" });
+    }
+
+    if (user.profile?.image?.public_id) {
+      await cloudinary.uploader.destroy(user.profile.image.public_id);
+    }
+
+    // 3. Delete associated data
+    await deleteApplicationsByUserId(id);
+    await deleteJobsByUserId(id);
+
+    // 4. Delete the User record
+    const result = await deleteUser(id);
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json(new ApiError(404, "User not found"));
+    }
+
+    res.status(200).json(
+      new ApiResponse(200, null, "User deleted successfully by admin")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to delete user"));
   }
 };
 

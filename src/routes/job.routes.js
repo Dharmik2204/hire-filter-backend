@@ -8,7 +8,9 @@ import {
   deleteJobController,
   getJobByIdController,
   getJobsController,
-  deleteHardJobController
+  deleteHardJobController,
+  getJobStatsController,
+  getJobsAdminController
 } from "../controllers/job.js";
 
 
@@ -45,6 +47,25 @@ router.delete(
   authMiddleware,
   authorizeRoles("admin", "hr"),
   deleteHardJobController
+);
+
+
+/* =====================
+   ADMIN / STATS ROUTES
+===================== */
+
+router.get(
+  "/stats",
+  authMiddleware,
+  authorizeRoles("admin", "hr"),
+  getJobStatsController
+);
+
+router.get(
+  "/admin/all-jobs",
+  authMiddleware,
+  authorizeRoles("admin"),
+  getJobsAdminController
 );
 
 

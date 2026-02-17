@@ -131,3 +131,40 @@ export const incrementApplicationsCount = (id) => {
     { new: true }
   );
 };
+
+/* ================= STATS & ADMIN ================= */
+
+export const getJobStats = async () => {
+  const stats = await Job.aggregate([
+    {
+      $group: {
+        _id: null,
+        totalJobs: { $sum: 1 },
+        activeJobs: { $sum: { $cond: [{ $eq: ["$isActive", true] }, 1, 0] } },
+        closedJobs: { $sum: { $cond: [{ $eq: ["$isActive", false] }, 1, 0] } },
+        openStatusJobs: { $sum: { $cond: [{ $eq: ["$jobStatus", "Open"] }, 1, 0] } },
+      },
+    },
+  ]);
+
+  return stats[0] || { totalJobs: 0, activeJobs: 0, closedJobs: 0, openStatusJobs: 0 };
+};
+
+export const getAllJobsAdmin = ({ page = 1, limit = 10, search = "" }) => {
+  const query = {};
+
+  if (search) {
+    query.$or = [
+      { jobTitle: { $regex: search, $options: "i" } },
+      { companyName: { $regex: search, $options: "i" } }
+    ];
+  }
+
+  const skip = (page - 1) * limit;
+
+  return Job.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit)
+    .populate("createdBy", "name email"); // Optional: populate creator info
+};

@@ -7,7 +7,9 @@ import {
   softDeleteJob,
   incrementJobViews,
   getJobByIdInternal,
-  hardDeleteJob
+  hardDeleteJob,
+  getJobStats,
+  getAllJobsAdmin
 } from "../repositories/job.repository.js";
 import mongoose from "mongoose";
 
@@ -253,5 +255,37 @@ export const getJobsController = async (req, res) => {
   } catch (error) {
     console.error("Error: ", error);
     res.status(500).json(new ApiError(500, "Failed to fetch jobs", [], error.stack));
+  }
+};
+
+/* ================= JOB STATS ================= */
+export const getJobStatsController = async (req, res) => {
+  try {
+    const stats = await getJobStats();
+
+    res.status(200).json(
+      new ApiResponse(200, stats, "Job statistics fetched successfully")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch job statistics"));
+  }
+};
+
+/* ================= ADMIN: GET ALL JOBS ================= */
+export const getJobsAdminController = async (req, res) => {
+  try {
+    const { page = 1, limit = 10, search = "" } = req.query;
+
+    const jobs = await getAllJobsAdmin({
+      page: Number(page),
+      limit: Number(limit),
+      search
+    });
+
+    res.status(200).json(
+      new ApiResponse(200, jobs, "All jobs fetched successfully for admin")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch jobs"));
   }
 };
