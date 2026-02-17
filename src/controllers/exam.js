@@ -126,12 +126,50 @@ export const startExamController = async (req, res) => {
     }
 
     // 🎯 Fetch random questions from QuestionBank (prioritize ones for this exam)
-    const rawQuestions = await getRandomQuestions({
+    let rawQuestions = await getRandomQuestions({
       examId,
       category: exam.examType === "mixed" ? undefined : exam.examType,
       categories: exam.examType === "mixed" ? ["aptitude", "reasoning", "verbal"] : undefined,
       limit: exam.questionCount,
     });
+
+    // 🔄 Lazy Generation: If no questions found and exam is set to AI, generate them now
+    if ((!rawQuestions || rawQuestions.length === 0) && exam.generateAI) {
+      console.log(`No questions found for exam ${examId}. Triggering lazy AI generation...`);
+
+      const job = await getJobById(exam.job);
+      if (job) {
+        try {
+          const aiQuestions = await generateQuestionsAI({
+            jobTitle: job.jobTitle,
+            jobDescription: job.description + (exam.topic ? ` Topic: ${exam.topic}` : ""),
+            examType: exam.examType,
+            count: exam.questionCount
+          });
+
+          if (aiQuestions && aiQuestions.length > 0) {
+            const questionsToInsert = aiQuestions.map(q => ({
+              ...q,
+              exam: exam._id
+            }));
+
+            await bulkInsertQuestions(questionsToInsert);
+
+            // Re-fetch questions after insertion
+            rawQuestions = await getRandomQuestions({
+              examId,
+              category: exam.examType === "mixed" ? undefined : exam.examType,
+              categories: exam.examType === "mixed" ? ["aptitude", "reasoning", "verbal"] : undefined,
+              limit: exam.questionCount,
+            });
+          }
+        } catch (aiError) {
+          console.error("Lazy AI Generation failed:", aiError);
+          // Proceed with empty questions or handle error as needed, 
+          // but for now we let it fall through so at least an attempt is created (or error if strict)
+        }
+      }
+    }
 
 
     // 🔒 Snapshot questions (remove correctAnswer before sending)
