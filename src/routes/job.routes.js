@@ -27,6 +27,25 @@ router.post(
 
 
 router.get("/", getJobsController);
+
+/* =====================
+   ADMIN / STATS ROUTES
+===================== */
+
+router.get(
+  "/stats",
+  authMiddleware,
+  authorizeRoles("admin", "hr"),
+  getJobStatsController
+);
+
+router.get(
+  "/admin/all-jobs",
+  authMiddleware,
+  authorizeRoles("admin"),
+  getJobsAdminController
+);
+
 router.get("/:id", getJobByIdController);
 
 router.put(
@@ -50,23 +69,7 @@ router.delete(
 );
 
 
-/* =====================
-   ADMIN / STATS ROUTES
-===================== */
 
-router.get(
-  "/stats",
-  authMiddleware,
-  authorizeRoles("admin", "hr"),
-  getJobStatsController
-);
-
-router.get(
-  "/admin/all-jobs",
-  authMiddleware,
-  authorizeRoles("admin"),
-  getJobsAdminController
-);
 
 
 export default router;
