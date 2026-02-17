@@ -25,7 +25,14 @@ export const deactivateExam = (examId) => {
     );
 };
 
-export const deleteExamById = (examId) => {
+export const deleteExamById = async (examId) => {
+    // 1. Delete all questions associated with this exam
+    await QuestionBank.deleteMany({ exam: examId });
+
+    // 2. Delete all attempts associated with this exam
+    await ExamAttempt.deleteMany({ exam: examId });
+
+    // 3. Delete the exam itself
     return Exam.findByIdAndDelete(examId);
 };
 

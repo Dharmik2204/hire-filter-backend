@@ -8,7 +8,8 @@ import {
    getExamAttemptsController,
    deleteExamController,
    getMyExamResult,
-   updateExamResultController
+   updateExamResultController,
+   getAttemptDetailsController
 } from "../controllers/exam.js";
 
 import { authorizeRoles, authMiddleware } from "../middlewares/authorize.middlewares.js";
@@ -21,6 +22,7 @@ const router = express.Router();
 router.post("/", authMiddleware, authorizeRoles("hr", "admin"), createExamController);
 router.get("/job/:jobId", authMiddleware, getExamByJobController);
 router.get("/:examId/attempts", authMiddleware, authorizeRoles("hr", "admin"), getExamAttemptsController);
+router.get("/attempt/:attemptId", authMiddleware, authorizeRoles("hr", "admin"), getAttemptDetailsController);
 router.delete("/:examId", authMiddleware, authorizeRoles("hr", "admin"), deleteExamController);
 
 /* =====================

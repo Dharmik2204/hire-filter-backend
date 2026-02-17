@@ -318,9 +318,10 @@ export const getMyExamResult = async (req, res) => {
     const { examId } = req.params;
     const userId = req.user._id;
 
-    // Find exam attempt for this user and exam
-    const attempts = await getAttemptsByExamId(examId);
-    const attempt = attempts.find(a => a.user._id.toString() === userId.toString());
+    // Optimized: Find specific attempt directly
+    const { ExamAttempt } = await import("../models/exam.models.js");
+    const attempt = await ExamAttempt.findOne({ exam: examId, user: userId })
+      .populate("questions.questionId"); // Populate if needed for details
 
     if (!attempt) {
       return res.status(404).json(new ApiError(404, "Exam attempt not found"));
@@ -335,22 +336,47 @@ export const getMyExamResult = async (req, res) => {
       );
     }
 
-    // Prepare detailed response
-    // Re-fetch questions to get correct answers for comparison if needed
-    // For now, serving stored answers and score
     res.status(200).json(
       new ApiResponse(200, {
         score: attempt.score,
         status: attempt.status,
         result: attempt.result,
-        totalMarks: attempt.questions.reduce((sum, q) => sum + q.marks, 0),
+        totalMarks: attempt.questions.reduce((sum, q) => sum + (q.marks || 1), 0),
         answers: attempt.answers,
-        detailedQuestions: attempt.questions // Includes correct answers if stored in snapshot
+        detailedQuestions: attempt.questions
       }, "Exam result fetched successfully")
     );
 
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch exam result"));
+  }
+};
+
+/* ======================
+   GET ATTEMPT DETAILS (HR/ADMIN)
+====================== */
+export const getAttemptDetailsController = async (req, res) => {
+  try {
+    const { attemptId } = req.params;
+    const attempt = await findAttemptById(attemptId); // Utility from repo
+
+    if (!attempt) {
+      return res.status(404).json(new ApiError(404, "Exam attempt not found"));
+    }
+
+    res.status(200).json(
+      new ApiResponse(200, {
+        score: attempt.score,
+        status: attempt.status,
+        result: attempt.result,
+        totalMarks: attempt.questions.reduce((sum, q) => sum + (q.marks || 1), 0),
+        answers: attempt.answers,
+        detailedQuestions: attempt.questions,
+        user: attempt.user // Include user info for HR
+      }, "Attempt details fetched successfully")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch attempt details"));
   }
 };
 
