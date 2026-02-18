@@ -40,6 +40,6 @@ router.patch("/:attemptId/result", authMiddleware, authorizeRoles("admin", "hr")
 /* =====================
    USER REPORT
 ===================== */
-router.get("/my-result/:examId", authMiddleware, getMyExamResult);
+router.get("/my-result/:examId", authMiddleware, authorizeRoles("user"), getMyExamResult);
 
 export default router;
