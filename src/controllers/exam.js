@@ -384,6 +384,7 @@ export const getMyExamResult = async (req, res) => {
         score: attempt.score,
         status: attempt.status,
         result: attempt.result,
+        feedback: attempt.feedback,
         totalMarks: attempt.questions.reduce((sum, q) => sum + (q.marks || 1), 0),
         answers: attempt.answers,
         detailedQuestions: attempt.questions
@@ -412,6 +413,7 @@ export const getAttemptDetailsController = async (req, res) => {
         score: attempt.score,
         status: attempt.status,
         result: attempt.result,
+        feedback: attempt.feedback,
         totalMarks: attempt.questions.reduce((sum, q) => sum + (q.marks || 1), 0),
         answers: attempt.answers,
         detailedQuestions: attempt.questions,
@@ -424,45 +426,35 @@ export const getAttemptDetailsController = async (req, res) => {
 };
 
 /* ======================
-   UPDATE EXAM RESULT (HR/ADMIN)
+   ADD EXAM FEEDBACK (HR/ADMIN)
 ====================== */
-export const updateExamResultController = async (req, res) => {
+export const addExamFeedbackController = async (req, res) => {
   try {
     const { attemptId } = req.params;
-    const { status, result } = req.body; // Restricted: HR cannot update score manually
+    const { feedback } = req.body; // Restricted: Only feedback is allowed
 
     if (!attemptId) {
       return res.status(400).json(new ApiError(400, "Attempt ID is required"));
     }
 
-    // Update Exam Attempt - Only Status/Result custom override
-    const { updateExamAttemptResult } = await import("../repositories/exam.repository.js");
+    if (!feedback) {
+      return res.status(400).json(new ApiError(400, "Feedback content is required"));
+    }
 
-    // We pass 'undefined' for score so it doesn't get updated in the repo if the repo handles partial updates,
-    // or we fetch the current score if needed. 
-    // Assuming `updateExamAttemptResult` takes (id, score, status, result), we need to be careful.
-    // Let's check repository. 
-    // Repo: updateExamAttemptResult(attemptId, score, status, result) -> updates all.
-    // We should fetch the current attempt first to keep the score, OR modify repo. 
-    // Best approach here: Fetch current Score to be safe.
+    const { addExamFeedback } = await import("../repositories/exam.repository.js");
 
-    const attempt = await findAttemptById(attemptId);
-    if (!attempt) {
+    const updatedAttempt = await addExamFeedback(attemptId, feedback);
+
+    if (!updatedAttempt) {
       return res.status(404).json(new ApiError(404, "Exam attempt not found"));
     }
 
-    const updatedAttempt = await updateExamAttemptResult(attemptId, attempt.score, status, result);
-
-    // Sync with Application (Score remains same, but maybe status logic elsewhere needs it?)
-    // If score didn't change, we might not need to call updateApplicationScore unless we want to ensure consistency.
-    await updateApplicationScore(updatedAttempt.application, attempt.score);
-
     res.status(200).json(
-      new ApiResponse(200, updatedAttempt, "Exam result updated successfully")
+      new ApiResponse(200, updatedAttempt, "Exam feedback added successfully")
     );
 
   } catch (error) {
-    res.status(500).json(formatError(error, 500, "Failed to update exam result"));
+    res.status(500).json(formatError(error, 500, "Failed to add exam feedback"));
   }
 };
 

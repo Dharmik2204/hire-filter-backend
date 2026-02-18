@@ -8,7 +8,7 @@ import {
    getExamAttemptsController,
    deleteExamController,
    getMyExamResult,
-   updateExamResultController,
+   addExamFeedbackController,
    getAttemptDetailsController
 } from "../controllers/exam.js";
 
@@ -35,7 +35,7 @@ router.post("/:attemptId/submit", authMiddleware, submitExamController);
    SYSTEM / ADMIN
 ===================== */
 // router.post("/:attemptId/evaluate", authMiddleware, authorizeRoles("admin", "hr"), evaluateExamController);
-router.patch("/:attemptId/result", authMiddleware, authorizeRoles("admin", "hr"), updateExamResultController);
+router.patch("/:attemptId/feedback", authMiddleware, authorizeRoles("admin", "hr"), addExamFeedbackController);
 
 /* =====================
    USER REPORT

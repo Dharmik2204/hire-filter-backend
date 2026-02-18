@@ -176,6 +176,11 @@ const examAttemptSchema = new mongoose.Schema(
             enum: ["started", "submitted", "evaluated"],
             default: "started",
         },
+
+        feedback: {
+            type: String,
+            default: "",
+        },
     },
     { timestamps: true }
 );

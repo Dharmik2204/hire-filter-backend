@@ -137,6 +137,14 @@ export const updateExamAttemptResult = (attemptId, score, status, result) => {
     );
 };
 
+export const addExamFeedback = (attemptId, feedback) => {
+    return ExamAttempt.findByIdAndUpdate(
+        attemptId,
+        { feedback },
+        { new: true }
+    );
+};
+
 /* ===========================
    RANKING
 =========================== */
