@@ -144,7 +144,7 @@ const examAttemptSchema = new mongoose.Schema(
         },
         questions: [
             {
-                _id: false,
+                // _id: true by default, allowing unique IDs for transient AI questions
                 questionId: {
                     type: mongoose.Schema.Types.ObjectId,
                     ref: "QuestionBank",
