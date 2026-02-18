@@ -34,7 +34,7 @@ router.post("/:attemptId/submit", authMiddleware, submitExamController);
 /* =====================
    SYSTEM / ADMIN
 ===================== */
-router.post("/:attemptId/evaluate", authMiddleware, authorizeRoles("admin", "hr"), evaluateExamController);
+// router.post("/:attemptId/evaluate", authMiddleware, authorizeRoles("admin", "hr"), evaluateExamController);
 router.patch("/:attemptId/result", authMiddleware, authorizeRoles("admin", "hr"), updateExamResultController);
 
 /* =====================

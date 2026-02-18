@@ -326,8 +326,7 @@ export const submitExamController = async (req, res) => {
    EVALUATE EXAM (SYSTEM) - Deprecated / Admin Backup
 ====================== */
 export const evaluateExamController = async (req, res) => {
-  // Kept for manual re-evaluation if needed by Admin
-  return res.status(200).json(new ApiResponse(200, null, "Auto-evaluation is now enabled on submission."));
+  return res.status(410).json(new ApiError(410, "Manual evaluation is deprecated. Exams are auto-evaluated on submission."));
 };
 
 /* ======================
@@ -379,15 +378,7 @@ export const getMyExamResult = async (req, res) => {
       return res.status(404).json(new ApiError(404, "Exam attempt not found"));
     }
 
-    if (attempt.status !== "evaluated") {
-      return res.status(200).json(
-        new ApiResponse(200, {
-          status: attempt.status,
-          message: "Result pending evaluation"
-        }, "Result pending")
-      );
-    }
-
+    // Always return full result (Auto-evaluation is now standard)
     res.status(200).json(
       new ApiResponse(200, {
         score: attempt.score,
@@ -438,25 +429,33 @@ export const getAttemptDetailsController = async (req, res) => {
 export const updateExamResultController = async (req, res) => {
   try {
     const { attemptId } = req.params;
-    const { score, status, result } = req.body;
+    const { status, result } = req.body; // Restricted: HR cannot update score manually
 
     if (!attemptId) {
       return res.status(400).json(new ApiError(400, "Attempt ID is required"));
     }
 
-    // Update Exam Attempt
-    // Assuming a new repository function `updateExamAttemptResult` exists or reusing updateExamScore
-    // We added updateExamAttemptResult in repository
+    // Update Exam Attempt - Only Status/Result custom override
     const { updateExamAttemptResult } = await import("../repositories/exam.repository.js");
 
-    const updatedAttempt = await updateExamAttemptResult(attemptId, score, status, result);
+    // We pass 'undefined' for score so it doesn't get updated in the repo if the repo handles partial updates,
+    // or we fetch the current score if needed. 
+    // Assuming `updateExamAttemptResult` takes (id, score, status, result), we need to be careful.
+    // Let's check repository. 
+    // Repo: updateExamAttemptResult(attemptId, score, status, result) -> updates all.
+    // We should fetch the current attempt first to keep the score, OR modify repo. 
+    // Best approach here: Fetch current Score to be safe.
 
-    if (!updatedAttempt) {
+    const attempt = await findAttemptById(attemptId);
+    if (!attempt) {
       return res.status(404).json(new ApiError(404, "Exam attempt not found"));
     }
 
-    // Sync with Application
-    await updateApplicationScore(updatedAttempt.application, score);
+    const updatedAttempt = await updateExamAttemptResult(attemptId, attempt.score, status, result);
+
+    // Sync with Application (Score remains same, but maybe status logic elsewhere needs it?)
+    // If score didn't change, we might not need to call updateApplicationScore unless we want to ensure consistency.
+    await updateApplicationScore(updatedAttempt.application, attempt.score);
 
     res.status(200).json(
       new ApiResponse(200, updatedAttempt, "Exam result updated successfully")
