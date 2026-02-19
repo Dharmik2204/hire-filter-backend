@@ -22,11 +22,13 @@ export const sendMessage = async (req, res) => {
             return res.status(400).json(new ApiError(400, "Receiver and content are required"));
         }
 
+        console.log(`SEND MESSAGE - From: ${senderId}, To: ${receiverId}`);
         const message = await createMessage({
             sender: senderId,
             receiver: receiverId,
             content
         });
+        console.log(`MESSAGE SAVED: ${message._id}`);
 
         // Emit socket event to receiver
         const io = getIO();
@@ -49,9 +51,9 @@ export const getConversation = async (req, res) => {
         const { userId } = req.params;
         const myId = req.user._id;
 
-        console.log(`Fetching conversation between ${myId} (me) and ${userId} (other)`);
+        console.log(`GET CONVERSATION - Request by: ${myId}, Target User: ${userId}`);
         const messages = await getConversationHistory(myId, userId);
-        console.log(`Found ${messages.length} messages`);
+        console.log(`Found ${messages.length} messages for conversation`);
 
         res.status(200).json(new ApiResponse(200, messages, "Conversation fetched"));
     } catch (error) {
