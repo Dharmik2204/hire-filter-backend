@@ -9,16 +9,25 @@ export const findMessageById = (id) => {
     return Message.findById(id);
 };
 
-export const getConversationHistory = (userId1, userId2) => {
-    const id1 = new mongoose.Types.ObjectId(userId1);
-    const id2 = new mongoose.Types.ObjectId(userId2);
+export const getConversationHistory = async (userId1, userId2) => {
+    try {
+        const id1 = new mongoose.Types.ObjectId(userId1);
+        const id2 = new mongoose.Types.ObjectId(userId2);
 
-    return Message.find({
-        $or: [
-            { sender: id1, receiver: id2 },
-            { sender: id2, receiver: id1 }
-        ]
-    }).sort({ createdAt: 1 }); // Oldest first
+        console.log(`Repository - Querying messages between: ${id1} and ${id2}`);
+
+        const messages = await Message.find({
+            $or: [
+                { sender: id1, receiver: id2 },
+                { sender: id2, receiver: id1 }
+            ]
+        }).sort({ createdAt: 1 });
+
+        return messages;
+    } catch (error) {
+        console.error("Repository - Error in getConversationHistory:", error);
+        throw error;
+    }
 };
 
 export const updateMessageContent = (id, content) => {

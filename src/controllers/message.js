@@ -49,7 +49,9 @@ export const getConversation = async (req, res) => {
         const { userId } = req.params;
         const myId = req.user._id;
 
+        console.log(`Fetching conversation between ${myId} (me) and ${userId} (other)`);
         const messages = await getConversationHistory(myId, userId);
+        console.log(`Found ${messages.length} messages`);
 
         res.status(200).json(new ApiResponse(200, messages, "Conversation fetched"));
     } catch (error) {
