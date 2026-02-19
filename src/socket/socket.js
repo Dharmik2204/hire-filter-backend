@@ -21,6 +21,16 @@ export const initializeSocket = (server) => {
             }
         });
 
+        // Typing Indicator Event
+        socket.on("typing", ({ senderId, receiverId, isTyping }) => {
+            if (receiverId) {
+                socket.to(receiverId).emit("display_typing", {
+                    senderId,
+                    isTyping
+                });
+            }
+        });
+
         socket.on("disconnect", () => {
             console.log("User disconnected");
         });
