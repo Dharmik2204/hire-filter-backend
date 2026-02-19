@@ -10,7 +10,7 @@ export const createExam = (data) => {
 };
 
 export const findExamByJobId = (jobId) => {
-    return Exam.findOne({ job: jobId, isActive: true });
+    return Exam.findOne({ job: jobId });
 };
 
 export const findExamById = (examId) => {

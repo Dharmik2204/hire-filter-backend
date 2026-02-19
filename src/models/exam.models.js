@@ -14,7 +14,6 @@ const examSchema = new mongoose.Schema(
 
         examType: {
             type: String,
-            enum: ["aptitude", "reasoning", "mixed", "technical"],
             required: true,
         },
 

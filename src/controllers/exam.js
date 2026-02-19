@@ -12,12 +12,12 @@ import {
   deleteExamById,
 } from "../repositories/exam.repository.js";
 
-import { getJobById } from "../repositories/job.repository.js";
+import { getJobById, getJobByIdInternal } from "../repositories/job.repository.js";
 import { updateApplicationScore } from "../repositories/application.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { formatError } from "../utils/errorHandler.js";
-import { createExamSchema, startExamSchema, submitExamSchema } from "../validations/exam.validation.js";
+import { createExamSchema, startExamSchema, submitExamSchema } from "../validations/verify_exam_validations.js";
 
 import { generateQuestionsAI } from "../utils/gemini.utils.js";
 import { bulkInsertQuestions } from "../repositories/exam.repository.js";
@@ -45,14 +45,18 @@ export const createExamController = async (req, res) => {
       topic
     } = value;
 
-    const job = await getJobById(jobId);
+    const job = await getJobByIdInternal(jobId);
     if (!job) {
-      return res.status(404).json(new ApiError(404, "Job not found"));
+      return res.status(404).json(new ApiError(404, "Job not found", ["Job not found"]));
+    }
+
+    if (!job.isActive) {
+      return res.status(400).json(new ApiError(400, "Cannot create exam for an inactive job", ["Cannot create exam for an inactive job"]));
     }
 
     const existingExam = await findExamByJobId(jobId);
     if (existingExam) {
-      return res.status(400).json(new ApiError(400, "Exam already exists for this job"));
+      return res.status(400).json(new ApiError(400, "Exam already exists for this job", ["Exam already exists for this job"]));
     }
 
     const exam = await createExam({
@@ -117,12 +121,12 @@ export const startExamController = async (req, res) => {
       await findAttemptByApplicationId(applicationId);
 
     if (existingAttempt) {
-      return res.status(400).json(new ApiError(400, "Exam already started for this application"));
+      return res.status(400).json(new ApiError(400, "Exam already started for this application", ["Exam already started for this application"]));
     }
 
     const exam = await findExamById(examId);
     if (!exam || !exam.isActive) {
-      return res.status(404).json(new ApiError(404, "Exam not available"));
+      return res.status(404).json(new ApiError(404, "Exam not available", ["Exam not available"]));
     }
 
     // 🎯 AI-First Strategy: Try to generate fresh questions
@@ -183,7 +187,7 @@ export const startExamController = async (req, res) => {
 
     // Ensure we have questions
     if (finalQuestions.length === 0) {
-      return res.status(404).json(new ApiError(404, "No questions available for this exam."));
+      return res.status(404).json(new ApiError(404, "No questions available for this exam.", ["No questions available for this exam."]));
     }
 
     const attempt = await createExamAttempt({
@@ -236,7 +240,7 @@ export const submitExamController = async (req, res) => {
     }
 
     if (!attemptId) {
-      return res.status(400).json(new ApiError(400, "Attempt ID is required"));
+      return res.status(400).json(new ApiError(400, "Attempt ID is required", ["Attempt ID is required"]));
     }
 
     const { answers } = value;
@@ -244,15 +248,15 @@ export const submitExamController = async (req, res) => {
     const attempt = await findAttemptById(attemptId);
 
     if (!attempt) {
-      return res.status(404).json(new ApiError(404, "Exam attempt not found"));
+      return res.status(404).json(new ApiError(404, "Exam attempt not found", ["Exam attempt not found"]));
     }
 
     if (attempt.user.toString() !== req.user._id.toString()) {
-      return res.status(403).json(new ApiError(403, "Unauthorized submission"));
+      return res.status(403).json(new ApiError(403, "Unauthorized submission", ["Unauthorized submission"]));
     }
 
     if (attempt.status === "submitted" || attempt.status === "evaluated") {
-      return res.status(400).json(new ApiError(400, "Exam already submitted"));
+      return res.status(400).json(new ApiError(400, "Exam already submitted", ["Exam already submitted"]));
     }
 
     // 1. Calculate Score
@@ -314,8 +318,7 @@ export const submitExamController = async (req, res) => {
       new ApiResponse(200, {
         score,
         status: resultStatus,
-        message: "Exam submitted and evaluated successfully"
-      }, "Exam submitted successfully")
+      }, "Exam submitted and evaluated successfully")
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to submit exam"));
@@ -326,7 +329,7 @@ export const submitExamController = async (req, res) => {
    EVALUATE EXAM (SYSTEM) - Deprecated / Admin Backup
 ====================== */
 export const evaluateExamController = async (req, res) => {
-  return res.status(410).json(new ApiError(410, "Manual evaluation is deprecated. Exams are auto-evaluated on submission."));
+  return res.status(410).json(new ApiError(410, "Manual evaluation is deprecated", ["Manual evaluation is deprecated. Exams are auto-evaluated on submission."]));
 };
 
 /* ======================
@@ -338,7 +341,7 @@ export const getExamByJobController = async (req, res) => {
     const exam = await findExamByJobId(jobId);
 
     if (!exam) {
-      return res.status(404).json(new ApiError(404, "No exam found for this job"));
+      return res.status(404).json(new ApiError(404, "No exam found for this job", ["No exam found for this job"]));
     }
 
     res.status(200).json(new ApiResponse(200, exam, "Exam fetched successfully"));
@@ -375,7 +378,7 @@ export const getMyExamResult = async (req, res) => {
       .populate("questions.questionId"); // Populate if needed for details
 
     if (!attempt) {
-      return res.status(404).json(new ApiError(404, "Exam attempt not found"));
+      return res.status(404).json(new ApiError(404, "Exam attempt not found", ["Exam attempt not found"]));
     }
 
     // Always return full result (Auto-evaluation is now standard)
@@ -405,7 +408,7 @@ export const getAttemptDetailsController = async (req, res) => {
     const attempt = await findAttemptById(attemptId); // Utility from repo
 
     if (!attempt) {
-      return res.status(404).json(new ApiError(404, "Exam attempt not found"));
+      return res.status(404).json(new ApiError(404, "Exam attempt not found", ["Exam attempt not found"]));
     }
 
     res.status(200).json(
@@ -434,11 +437,11 @@ export const addExamFeedbackController = async (req, res) => {
     const { feedback } = req.body; // Restricted: Only feedback is allowed
 
     if (!attemptId) {
-      return res.status(400).json(new ApiError(400, "Attempt ID is required"));
+      return res.status(400).json(new ApiError(400, "Attempt ID is required", ["Attempt ID is required"]));
     }
 
     if (!feedback) {
-      return res.status(400).json(new ApiError(400, "Feedback content is required"));
+      return res.status(400).json(new ApiError(400, "Feedback content is required", ["Feedback content is required"]));
     }
 
     const { addExamFeedback } = await import("../repositories/exam.repository.js");
@@ -446,7 +449,7 @@ export const addExamFeedbackController = async (req, res) => {
     const updatedAttempt = await addExamFeedback(attemptId, feedback);
 
     if (!updatedAttempt) {
-      return res.status(404).json(new ApiError(404, "Exam attempt not found"));
+      return res.status(404).json(new ApiError(404, "Exam attempt not found", ["Exam attempt not found"]));
     }
 
     res.status(200).json(
@@ -467,7 +470,7 @@ export const deleteExamController = async (req, res) => {
     const exam = await deleteExamById(examId);
 
     if (!exam) {
-      return res.status(404).json(new ApiError(404, "Exam not found"));
+      return res.status(404).json(new ApiError(404, "Exam not found", ["Exam not found"]));
     }
 
     res.status(200).json(new ApiResponse(200, null, "Exam deleted successfully"));
