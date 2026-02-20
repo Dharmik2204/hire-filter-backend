@@ -51,11 +51,16 @@ export const getConversation = async (req, res) => {
         const { userId } = req.params;
         const myId = req.user._id;
 
-        console.log(`GET CONVERSATION - Request by: ${myId}, Target User: ${userId}`);
         const messages = await getConversationHistory(myId, userId);
-        console.log(`Found ${messages.length} messages for conversation`);
 
-        res.status(200).json(new ApiResponse(200, messages, "Conversation fetched"));
+        res.status(200).json(new ApiResponse(200, {
+            messages,
+            debug: {
+                requestingUser: myId,
+                targetUser: userId,
+                count: messages.length
+            }
+        }, "Conversation fetched"));
     } catch (error) {
         res.status(500).json(formatError(error, 500, "Failed to fetch conversation"));
     }
