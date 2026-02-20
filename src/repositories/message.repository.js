@@ -14,7 +14,15 @@ export const getConversationHistory = async (userId1, userId2) => {
         const id1 = new mongoose.Types.ObjectId(userId1);
         const id2 = new mongoose.Types.ObjectId(userId2);
 
-        console.log(`Repository - Querying messages between: ${id1} and ${id2}`);
+        console.log(`Repository DEBUG - Comparing:`);
+        console.log(`  Current User (id1): ${id1} (Type: ${typeof userId1})`);
+        console.log(`  Target User (id2): ${id2} (Type: ${typeof userId2})`);
+
+        // Diagnostic query: Count messages for each user separately
+        const countFromMeToHim = await Message.countDocuments({ sender: id1, receiver: id2 });
+        const countFromHimToMe = await Message.countDocuments({ sender: id2, receiver: id1 });
+        console.log(`  Matches from Me to Him: ${countFromMeToHim}`);
+        console.log(`  Matches from Him to Me: ${countFromHimToMe}`);
 
         const messages = await Message.find({
             $or: [
