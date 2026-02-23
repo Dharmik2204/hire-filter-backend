@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import {
   createExam,
   findExamByJobId,
@@ -232,6 +233,10 @@ export const startExamController = async (req, res) => {
 export const submitExamController = async (req, res) => {
   try {
     const { attemptId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(attemptId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Attempt ID", ["Invalid Attempt ID"]));
+    }
+
     const { error, value } = submitExamSchema.validate(req.body, { abortEarly: false });
 
     if (error) {
@@ -338,6 +343,10 @@ export const evaluateExamController = async (req, res) => {
 export const getExamByJobController = async (req, res) => {
   try {
     const { jobId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Job ID", ["Invalid Job ID"]));
+    }
+
     const exam = await findExamByJobId(jobId);
 
     if (!exam) {
@@ -356,6 +365,10 @@ export const getExamByJobController = async (req, res) => {
 export const getExamAttemptsController = async (req, res) => {
   try {
     const { examId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(examId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Exam ID", ["Invalid Exam ID"]));
+    }
+
     const attempts = await getAttemptsByExamId(examId);
 
     res.status(200).json(new ApiResponse(200, attempts, "Exam attempts fetched successfully"));
@@ -370,6 +383,10 @@ export const getExamAttemptsController = async (req, res) => {
 export const getMyExamResult = async (req, res) => {
   try {
     const { examId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(examId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Exam ID", ["Invalid Exam ID"]));
+    }
+
     const userId = req.user._id;
 
     // Optimized: Find specific attempt directly
@@ -405,6 +422,10 @@ export const getMyExamResult = async (req, res) => {
 export const getAttemptDetailsController = async (req, res) => {
   try {
     const { attemptId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(attemptId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Attempt ID", ["Invalid Attempt ID"]));
+    }
+
     const attempt = await findAttemptById(attemptId); // Utility from repo
 
     if (!attempt) {
@@ -434,6 +455,10 @@ export const getAttemptDetailsController = async (req, res) => {
 export const addExamFeedbackController = async (req, res) => {
   try {
     const { attemptId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(attemptId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Attempt ID", ["Invalid Attempt ID"]));
+    }
+
     const { feedback } = req.body; // Restricted: Only feedback is allowed
 
     if (!attemptId) {
@@ -467,6 +492,10 @@ export const addExamFeedbackController = async (req, res) => {
 export const deleteExamController = async (req, res) => {
   try {
     const { examId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(examId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Exam ID", ["Invalid Exam ID"]));
+    }
+
     const exam = await deleteExamById(examId);
 
     if (!exam) {
