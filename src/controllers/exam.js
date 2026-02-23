@@ -55,11 +55,6 @@ export const createExamController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Cannot create exam for an inactive job", ["Cannot create exam for an inactive job"]));
     }
 
-    const existingExam = await findExamByJobId(jobId);
-    if (existingExam) {
-      return res.status(400).json(new ApiError(400, "Exam already exists for this job", ["Exam already exists for this job"]));
-    }
-
     const exam = await createExam({
       job: jobId,
       examType,
@@ -67,7 +62,8 @@ export const createExamController = async (req, res) => {
       questionCount,
       durationMinutes,
       passingMarks,
-      generateAI: generateAI || false
+      generateAI: generateAI || false,
+      topic: topic || ""
     });
 
     if (generateAI) {
@@ -130,54 +126,40 @@ export const startExamController = async (req, res) => {
       return res.status(404).json(new ApiError(404, "Exam not available", ["Exam not available"]));
     }
 
-    // 🎯 AI-First Strategy: Try to generate fresh questions
+    // 🎯 Optimized Strategy: Fetch questions from QuestionBank (Database only)
     let finalQuestions = [];
-    let isAiGenerated = false;
 
-    if (exam.generateAI) {
-      try {
-        console.log(`Attempting AI generation for exam ${examId}...`);
-        const job = await getJobById(exam.job);
+    console.log(`Fetching questions from database for exam ${examId}...`);
+    const dbQuestions = await getRandomQuestions({
+      examId,
+      category: exam.examType === "mixed" ? undefined : exam.examType,
+      categories: exam.examType === "mixed" ? ["aptitude", "reasoning", "verbal"] : undefined,
+      limit: exam.questionCount,
+    });
 
-        if (job) {
-          const aiQuestions = await generateQuestionsAI({
-            jobTitle: job.jobTitle,
-            jobDescription: job.description + (exam.topic ? ` Topic: ${exam.topic}` : ""),
-            examType: exam.examType,
-            count: exam.questionCount
-          });
-
-          if (aiQuestions && aiQuestions.length > 0) {
-            // Transform for ExamAttempt schema (Transient - No Global ID)
-            finalQuestions = aiQuestions.map(q => ({
-              question: q.question,
-              options: q.options,
-              correctAnswer: q.correctAnswer,
-              marks: q.marks || 1,
-              // No questionId ref for AI questions
-            }));
-            isAiGenerated = true;
-            console.log(`✅ AI successfully generated ${finalQuestions.length} questions.`);
-          }
-        }
-      } catch (aiError) {
-        console.error("⚠️ AI Generation failed, falling back to database:", aiError.message);
-      }
+    if (dbQuestions && dbQuestions.length > 0) {
+      finalQuestions = dbQuestions.map((q) => ({
+        questionId: q._id,
+        question: q.question,
+        options: q.options,
+        correctAnswer: q.correctAnswer,
+        marks: q.marks,
+      }));
     }
 
-    // 🔄 Fallback: Fetch from QuestionBank if AI failed or not enabled
+    // 🔄 Global Fallback: If no questions found for this specific exam, pull from global pool
     if (finalQuestions.length === 0) {
-      console.log(`Fetching questions from database for exam ${examId}...`);
-      const dbQuestions = await getRandomQuestions({
-        examId,
+      console.log(`No specific questions found for exam ${examId}. Attempting global category fallback...`);
+      const globalQuestions = await getRandomQuestions({
+        // No examId filter here
         category: exam.examType === "mixed" ? undefined : exam.examType,
         categories: exam.examType === "mixed" ? ["aptitude", "reasoning", "verbal"] : undefined,
         limit: exam.questionCount,
       });
 
-      if (dbQuestions && dbQuestions.length > 0) {
-        finalQuestions = dbQuestions.map((q) => ({
-          questionId: q._id, // Keep reference for DB questions
+      if (globalQuestions && globalQuestions.length > 0) {
+        finalQuestions = globalQuestions.map((q) => ({
+          questionId: q._id,
           question: q.question,
           options: q.options,
           correctAnswer: q.correctAnswer,
@@ -216,7 +198,6 @@ export const startExamController = async (req, res) => {
         attemptId: attempt._id,
         questions: responseQuestions,
         durationMinutes: exam.durationMinutes,
-        isAiGenerated
       }, "Exam started successfully")
     );
   } catch (error) {
@@ -347,13 +328,13 @@ export const getExamByJobController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Invalid Job ID", ["Invalid Job ID"]));
     }
 
-    const exam = await findExamByJobId(jobId);
+    const exams = await findExamsByJobId(jobId);
 
-    if (!exam) {
-      return res.status(404).json(new ApiError(404, "No exam found for this job", ["No exam found for this job"]));
+    if (!exams || exams.length === 0) {
+      return res.status(404).json(new ApiError(404, "No exams found for this job", ["No exams found for this job"]));
     }
 
-    res.status(200).json(new ApiResponse(200, exam, "Exam fetched successfully"));
+    res.status(200).json(new ApiResponse(200, exams, "Exams fetched successfully"));
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch exam"));
   }

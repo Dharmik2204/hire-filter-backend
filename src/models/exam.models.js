@@ -9,7 +9,6 @@ const examSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.ObjectId,
             ref: "Job",
             required: true,
-            unique: true,
         },
 
         examType: {
@@ -47,6 +46,10 @@ const examSchema = new mongoose.Schema(
         generateAI: {
             type: Boolean,
             default: false,
+        },
+        topic: {
+            type: String,
+            trim: true,
         },
     },
     { timestamps: true }
