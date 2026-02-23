@@ -9,6 +9,7 @@ import {
     updateMessageContent,
     softDeleteMessage
 } from "../repositories/message.repository.js";
+import { searchUsersForMessaging } from "../repositories/user.repository.js";
 
 /* ======================
    SEND MESSAGE
@@ -121,5 +122,25 @@ export const deleteMessage = async (req, res) => {
         res.status(200).json(new ApiResponse(200, deletedMessage, "Message deleted"));
     } catch (error) {
         res.status(500).json(formatError(error, 500, "Failed to delete message"));
+    }
+};
+
+/* ======================
+   SEARCH USERS
+====================== */
+export const searchMessageUsers = async (req, res) => {
+    try {
+        const { query } = req.query;
+        const currentUserId = req.user._id;
+
+        if (!query) {
+            return res.status(200).json(new ApiResponse(200, [], "Empty search query"));
+        }
+
+        const users = await searchUsersForMessaging(query, currentUserId);
+
+        res.status(200).json(new ApiResponse(200, users, "Users fetched successfully"));
+    } catch (error) {
+        res.status(500).json(formatError(error, 500, "Failed to search users"));
     }
 };

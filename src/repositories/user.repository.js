@@ -95,3 +95,25 @@ export const clearOTPAndUpdatePassword = (userId, hashedPassword) => {
     { new: true }
   );
 };
+
+/* ================= SEARCH FOR MESSAGING ================= */
+
+export const searchUsersForMessaging = async (query, currentUserId) => {
+  const isObjectId = mongoose.Types.ObjectId.isValid(query);
+  
+  const searchQuery = {
+    _id: { $ne: currentUserId },
+    $or: [
+      { name: { $regex: query, $options: "i" } },
+      { "company.name": { $regex: query, $options: "i" } }
+    ]
+  };
+
+  if (isObjectId) {
+    searchQuery.$or.push({ _id: query });
+  }
+
+  return User.find(searchQuery)
+    .select("name email role profile.image company.name")
+    .limit(20);
+};
