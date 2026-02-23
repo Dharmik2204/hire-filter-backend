@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import { User } from "../models/users.models.js";
 
 /* ================= USER ================= */
@@ -100,7 +101,7 @@ export const clearOTPAndUpdatePassword = (userId, hashedPassword) => {
 
 export const searchUsersForMessaging = async (query, currentUserId) => {
   const isObjectId = mongoose.Types.ObjectId.isValid(query);
-  
+
   const searchQuery = {
     _id: { $ne: currentUserId },
     $or: [
