@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import {
   createExam,
-  findExamByJobId,
+  findExamsByJobId,
   findExamById,
   getRandomQuestions,
   createExamAttempt,
