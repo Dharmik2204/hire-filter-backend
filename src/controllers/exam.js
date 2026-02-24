@@ -340,8 +340,17 @@ export const getExamAttemptsController = async (req, res) => {
     const { examId } = req.params;
 
     const attempts = await getAttemptsByExamId(examId);
+    const summaryAttempts = attempts.map(att => ({
+      _id: att._id,
+      user: att.user,
+      score: att.score,
+      status: att.status,
+      result: att.result,
+      startedAt: att.startedAt
+    }));
 
-    res.status(200).json(new ApiResponse(200, attempts, "Exam attempts fetched successfully"));
+
+    res.status(200).json(new ApiResponse(200, summaryAttempts, "Exam attempts fetched successfully"));
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch exam attempts"));
   }
