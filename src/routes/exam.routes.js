@@ -13,8 +13,12 @@ import {
 } from "../controllers/exam.js";
 
 import { authorizeRoles, authMiddleware } from "../middlewares/authorize.middlewares.js";
+import { validateObjectIdParams } from "../middlewares/validateObjectId.middleware.js";
 
 const router = express.Router();
+
+//this protects every route in this file in just one line
+router.use(validateObjectIdParams);
 
 /* =====================
    HR ROUTES
