@@ -95,6 +95,10 @@ export const findAttemptByApplicationId = (applicationId) => {
     return ExamAttempt.findOne({ application: applicationId });
 };
 
+export const findAttemptByExamAndApplication = (examId, applicationId) => {
+    return ExamAttempt.findOne({ exam: examId, application: applicationId });
+};
+
 export const findAttemptById = (attemptId) => {
     return ExamAttempt.findById(attemptId);
 };

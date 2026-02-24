@@ -5,6 +5,7 @@ import {
   getRandomQuestions,
   createExamAttempt,
   findAttemptByApplicationId,
+  findAttemptByExamAndApplication,
   findAttemptById,
   saveExamAnswers,
   updateExamScore,
@@ -115,10 +116,10 @@ export const startExamController = async (req, res) => {
     const userId = req.user._id;
 
     const existingAttempt =
-      await findAttemptByApplicationId(applicationId);
+      await findAttemptByExamAndApplication(examId, applicationId);
 
     if (existingAttempt) {
-      return res.status(400).json(new ApiError(400, "Exam already started for this application", ["Exam already started for this application"]));
+      return res.status(400).json(new ApiError(400, "You have already started this specific exam", ["You have already started this specific exam"]));
     }
 
     const exam = await findExamById(examId);
