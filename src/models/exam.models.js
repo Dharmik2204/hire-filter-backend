@@ -57,6 +57,13 @@ const examSchema = new mongoose.Schema(
 
 export const Exam = mongoose.model("Exam", examSchema);
 
+// 🛠️ Database Migration Helper: Drop the old unique index 'job_1' if it exists.
+// This allows HR to create multiple exams for the same job.
+// You can remove this block after it runs once on your production database.
+Exam.collection.dropIndex("job_1").catch(() => {
+    // console.log("Index 'job_1' already dropped or doesn't exist.");
+});
+
 /* =======================
    QUESTION BANK
 ======================= */
