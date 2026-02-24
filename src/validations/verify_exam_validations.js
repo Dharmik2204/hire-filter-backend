@@ -8,10 +8,12 @@ export const createExamSchema = Joi.object({
         "string.pattern.base": "Invalid Job ID format",
         "any.required": "Job ID is required",
     }),
-    examType: Joi.string()
+    difficulty: Joi.string()
+        .valid("easy", "medium", "hard")
         .required()
         .messages({
-            "any.required": "Exam type is required",
+            "any.required": "Difficulty level is required",
+            "any.only": "Difficulty must be one of: easy, medium, hard"
         }),
     title: Joi.string().trim().min(3).max(100).required().messages({
         "string.empty": "Title is required",
@@ -37,8 +39,10 @@ export const createExamSchema = Joi.object({
         "any.required": "Passing marks is required",
     }),
     generateAI: Joi.boolean().default(false),
-    topic: Joi.string().trim().max(100).optional().messages({
+    topic: Joi.string().trim().max(100).required().messages({
+        "string.empty": "Topic is required",
         "string.max": "Topic must be at most 100 characters long",
+        "any.required": "Topic is required for generating or filtering questions",
     }),
 });
 

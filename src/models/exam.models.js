@@ -11,9 +11,11 @@ const examSchema = new mongoose.Schema(
             required: true,
         },
 
-        examType: {
+        difficulty: {
             type: String,
             required: true,
+            enum: ["easy", "medium", "hard"],
+            default: "medium"
         },
 
         title: {

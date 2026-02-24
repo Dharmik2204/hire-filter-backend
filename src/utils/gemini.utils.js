@@ -10,17 +10,18 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
  * @param {Object} params
  * @param {string} params.jobTitle
  * @param {string} params.jobDescription
- * @param {string} params.examType - technical, aptitude, etc.
+ * @param {string} params.difficulty - easy, medium, hard
+ * @param {string} params.topic - Topic of the exam
  * @param {number} params.count - Number of questions to generate.
  * @returns {Promise<Array>} Array of question objects.
  */
-export const generateQuestionsAI = async ({ jobTitle, jobDescription, examType, count }) => {
+export const generateQuestionsAI = async ({ jobTitle, jobDescription, difficulty, topic, count }) => {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-flash-latest" });
 
     const prompt = `
       You are an expert recruiter and examiner. 
-      Generate exactly ${count} Multiple Choice Questions (MCQs) for a ${examType} exam for the role of "${jobTitle}".
+      Generate exactly ${count} Multiple Choice Questions (MCQs) on the topic of "${topic || jobTitle}" with a "${difficulty}" difficulty level for the role of "${jobTitle}".
       Context - Job Description: ${jobDescription}
 
       Output MUST be a valid JSON array of objects with the following structure:
@@ -29,8 +30,8 @@ export const generateQuestionsAI = async ({ jobTitle, jobDescription, examType, 
           "question": "Question text here",
           "options": ["Option A", "Option B", "Option C", "Option D"],
           "correctAnswer": "The exact text of the correct option",
-          "category": "${examType}",
-          "difficulty": "medium"
+          "category": "${topic || 'general'}",
+          "difficulty": "${difficulty}"
         }
       ]
 

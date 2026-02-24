@@ -36,7 +36,7 @@ export const createExamController = async (req, res) => {
 
     const {
       jobId,
-      examType,
+      difficulty,
       title,
       questionCount,
       durationMinutes,
@@ -56,7 +56,7 @@ export const createExamController = async (req, res) => {
 
     const exam = await createExam({
       job: jobId,
-      examType,
+      difficulty,
       title,
       questionCount,
       durationMinutes,
@@ -69,8 +69,9 @@ export const createExamController = async (req, res) => {
       try {
         const aiQuestions = await generateQuestionsAI({
           jobTitle: job.jobTitle,
-          jobDescription: job.description + (topic ? ` Topic: ${topic}` : ""),
-          examType,
+          jobDescription: job.description,
+          difficulty,
+          topic,
           count: questionCount
         });
 
@@ -131,8 +132,6 @@ export const startExamController = async (req, res) => {
     console.log(`Fetching questions from database for exam ${examId}...`);
     const dbQuestions = await getRandomQuestions({
       examId,
-      category: exam.examType === "mixed" ? undefined : exam.examType,
-      categories: exam.examType === "mixed" ? ["aptitude", "reasoning", "verbal"] : undefined,
       limit: exam.questionCount,
     });
 
@@ -146,13 +145,12 @@ export const startExamController = async (req, res) => {
       }));
     }
 
-    // 🔄 Global Fallback: If no questions found for this specific exam, pull from global pool
+    // 🔄 Global Fallback: If no questions found for this specific exam, pull from global pool based on exam topic
     if (finalQuestions.length === 0) {
       console.log(`No specific questions found for exam ${examId}. Attempting global category fallback...`);
       const globalQuestions = await getRandomQuestions({
         // No examId filter here
-        category: exam.examType === "mixed" ? undefined : exam.examType,
-        categories: exam.examType === "mixed" ? ["aptitude", "reasoning", "verbal"] : undefined,
+        category: exam.topic || undefined,
         limit: exam.questionCount,
       });
 
