@@ -40,20 +40,41 @@ export const sendMessage = async (req, res) => {
 
         await updateConversationLastMessage(conversation._id, message._id);
 
+        // ----------------------------------------------------
+        // NEW: Format the message for Sockets before sending
+        // ----------------------------------------------------
+        const messageForReceiver = {
+            ...message.toObject(),
+            isOutbound: false // To the receiver, it's ALWAYS inbound
+        };
+
+        const messageForSender = {
+            ...message.toObject(),
+            isOutbound: true // To the sender, it's ALWAYS outbound
+        };
+
         // Emit socket event to receiver
         const io = getIO();
-        
-        // 1. Tell the receiver there is a new message
-        io.to(receiverId).emit("new_message", message);
-        
-        // Also emit to sender (if they have multiple tabs open)
-        io.to(senderId).emit("new_message", message);
+
+        // 1. Tell the receiver there is a new message (using inbound format)
+        io.to(receiverId).emit("new_message", messageForReceiver);
+
+        // Also emit to sender (using outbound format)
+        io.to(senderId).emit("new_message", messageForSender);
+
         // 2. IMPORTANT: Tell the receiver to refresh their Inbox list!
         io.to(receiverId).emit("update_inbox", {
             conversationId: conversation._id,
-            lastMessage: message
+            lastMessage: messageForReceiver
         });
-        res.status(201).json(new ApiResponse(201, message, "Message sent"));
+
+        // Finally, map it for the standard HTTP response
+        const responseMessage = {
+            ...message.toObject(),
+            isOutbound: true
+        };
+
+        res.status(201).json(new ApiResponse(201, responseMessage, "Message sent"));
     } catch (error) {
         res.status(500).json(formatError(error, 500, "Failed to send message"));
     }
@@ -75,10 +96,21 @@ export const getConversation = async (req, res) => {
         // Fetch paginated messages
         const messages = await getPaginatedMessages(conversation._id, page, limit);
 
+        // NEW LOGIC: Add the `isOutbound` flag to every message
+        const formattedMessages = messages.map((msg) => {
+            // Convert from Mongoose Document to standard Javascript Object
+            const messageObj = msg.toObject();
+
+            // If the sender matches my ID, it's outbound (I sent it)
+            messageObj.isOutbound = messageObj.sender.toString() === myId.toString();
+
+            return messageObj;
+        });
+
         res.status(200).json(new ApiResponse(200, {
             conversationId: conversation._id,
             page,
-            messages
+            messages: formattedMessages
         }, "Conversation fetched"));
     } catch (error) {
         res.status(500).json(formatError(error, 500, "Failed to fetch conversation"));
