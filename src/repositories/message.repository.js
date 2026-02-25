@@ -64,12 +64,12 @@ export const updateConversationLastMessage = async (conversationId, messageId) =
     return Conversation.findByIdAndUpdate(conversationId, { lastMessage: messageId });
 };
 // 3. Get Paginated Messages (WhatsApp Timeline Style)
-export const getPaginatedMessages = async (conversationId, page = 1, limit = 20) => {
+export const getPaginatedMessages = async (conversationId, page = 1, limit = 10) => {
     const skip = (page - 1) * limit;
-    
+
     // Sort by -1 to get newest first, then reverse on frontend or here
     return Message.find({ conversationId })
-        .sort({ createdAt: -1 }) 
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
 };
