@@ -1,5 +1,7 @@
 import mongoose from "mongoose";
 import { Message } from "../models/message.models.js";
+import { Conversation } from "../models/conversation.models.js";
+
 
 export const createMessage = (data) => {
     return Message.create(data);
@@ -42,4 +44,62 @@ export const softDeleteMessage = (id) => {
         { isDeleted: true, content: "This message was deleted" },
         { new: true }
     );
+};
+
+
+// 1. Find or create a conversation between two users
+export const getOrCreateConversation = async (senderId, receiverId) => {
+    let conversation = await Conversation.findOne({
+        participants: { $all: [senderId, receiverId] }
+    });
+    if (!conversation) {
+        conversation = await Conversation.create({
+            participants: [senderId, receiverId]
+        });
+    }
+    return conversation;
+};
+// 2. Update a conversation's last message
+export const updateConversationLastMessage = async (conversationId, messageId) => {
+    return Conversation.findByIdAndUpdate(conversationId, { lastMessage: messageId });
+};
+// 3. Get Paginated Messages (WhatsApp Timeline Style)
+export const getPaginatedMessages = async (conversationId, page = 1, limit = 20) => {
+    const skip = (page - 1) * limit;
+    
+    // Sort by -1 to get newest first, then reverse on frontend or here
+    return Message.find({ conversationId })
+        .sort({ createdAt: -1 }) 
+        .skip(skip)
+        .limit(limit);
+};
+
+// 5. Mark conversation as read
+export const markConversationAsRead = async (conversationId, userId) => {
+    return Message.updateMany(
+        { conversationId, receiver: userId, isRead: false },
+        { isRead: true }
+    );
+};
+
+
+// 4. Get User's Inbox (List of all chats)
+export const getUserInbox = async (userId) => {
+    const conversations = await Conversation.find({ participants: userId })
+        .populate("participants", "name email profileImage")
+        .populate("lastMessage")
+        .sort({ updatedAt: -1 })
+        .lean(); // Lean for performance and to add custom fields
+
+    // Loop through each conversation to add unreadCount
+    const inboxWithCounts = await Promise.all(conversations.map(async (conv) => {
+        const unreadCount = await Message.countDocuments({
+            conversationId: conv._id,
+            receiver: userId,
+            isRead: false
+        });
+        return { ...conv, unreadCount };
+    }));
+
+    return inboxWithCounts;
 };

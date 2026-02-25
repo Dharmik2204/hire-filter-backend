@@ -2,6 +2,11 @@ import mongoose from "mongoose";
 
 const messageSchema = new mongoose.Schema(
     {
+        conversationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Conversation",
+            required: true,
+        },
         sender: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
@@ -37,6 +42,7 @@ const messageSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+messageSchema.index({ conversationId: 1, createdAt: -1 });
 // Indexes for faster retrieval of conversation history
 messageSchema.index({ sender: 1, receiver: 1, createdAt: -1 });
 messageSchema.index({ receiver: 1, sender: 1, createdAt: -1 });

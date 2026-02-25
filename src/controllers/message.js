@@ -7,7 +7,13 @@ import {
     getConversationHistory,
     findMessageById,
     updateMessageContent,
-    softDeleteMessage
+    softDeleteMessage,
+    getOrCreateConversation,
+    updateConversationLastMessage,
+    getUserInbox,
+    getPaginatedMessages,
+    markConversationAsRead,
+
 } from "../repositories/message.repository.js";
 import { searchUsersForMessaging } from "../repositories/user.repository.js";
 
@@ -23,19 +29,30 @@ export const sendMessage = async (req, res) => {
             return res.status(400).json(new ApiError(400, "Receiver and content are required"));
         }
 
+        const conversation = await getOrCreateConversation(senderId, receiverId);
+
         const message = await createMessage({
+            conversationId: conversation._id,
             sender: senderId,
             receiver: receiverId,
             content
         });
 
+        await updateConversationLastMessage(conversation._id, message._id);
+
         // Emit socket event to receiver
         const io = getIO();
+        
+        // 1. Tell the receiver there is a new message
         io.to(receiverId).emit("new_message", message);
-
+        
         // Also emit to sender (if they have multiple tabs open)
         io.to(senderId).emit("new_message", message);
-
+        // 2. IMPORTANT: Tell the receiver to refresh their Inbox list!
+        io.to(receiverId).emit("update_inbox", {
+            conversationId: conversation._id,
+            lastMessage: message
+        });
         res.status(201).json(new ApiResponse(201, message, "Message sent"));
     } catch (error) {
         res.status(500).json(formatError(error, 500, "Failed to send message"));
@@ -49,14 +66,37 @@ export const getConversation = async (req, res) => {
     try {
         const { userId } = req.params;
         const myId = req.user._id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
 
-        const messages = await getConversationHistory(myId, userId);
+        // Find the conversation ID
+        const conversation = await getOrCreateConversation(myId, userId);
 
-        res.status(200).json(new ApiResponse(200, messages, "Conversation fetched"));
+        // Fetch paginated messages
+        const messages = await getPaginatedMessages(conversation._id, page, limit);
+
+        res.status(200).json(new ApiResponse(200, {
+            conversationId: conversation._id,
+            page,
+            messages
+        }, "Conversation fetched"));
     } catch (error) {
         res.status(500).json(formatError(error, 500, "Failed to fetch conversation"));
     }
 };
+
+
+export const getInbox = async (req, res) => {
+    try {
+        const myId = req.user._id;
+        const inbox = await getUserInbox(myId);
+        res.status(200).json(new ApiResponse(200, inbox, "Inbox fetched"));
+    } catch (error) {
+        res.status(500).json(formatError(error, 500, "Failed to fetch inbox"));
+    }
+};
+
+
 
 /* ======================
    EDIT MESSAGE
@@ -142,5 +182,19 @@ export const searchMessageUsers = async (req, res) => {
         res.status(200).json(new ApiResponse(200, users, "Users fetched successfully"));
     } catch (error) {
         res.status(500).json(formatError(error, 500, "Failed to search users"));
+    }
+};
+
+/* ======================   MARK AS READ  ====================== */
+export const markAsReadController = async (req, res) => {
+    try {
+        const { conversationId } = req.params;
+        const userId = req.user._id;
+
+        await markConversationAsRead(conversationId, userId);
+
+        res.status(200).json(new ApiResponse(200, null, "Messages marked as read"));
+    } catch (error) {
+        res.status(500).json(formatError(error, 500, "Failed to mark as read"));
     }
 };
