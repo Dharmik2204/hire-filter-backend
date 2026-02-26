@@ -187,6 +187,7 @@ export const getPreviousConversationUsers = async (userId, { limit = 25, cursor,
                 _id: otherUser._id,
                 name: otherUser.name,
                 email: otherUser.email,
+                role: otherUser.role,
                 profileImage: otherUser.profileImage || null,
             },
             lastMessage: conv.lastMessage
