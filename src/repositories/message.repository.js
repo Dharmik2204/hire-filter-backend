@@ -2,6 +2,9 @@ import mongoose from "mongoose";
 import { Message } from "../models/message.models.js";
 import { Conversation } from "../models/conversation.models.js";
 
+const buildParticipantKey = (userId1, userId2) => {
+    return [userId1.toString(), userId2.toString()].sort().join(":");
+};
 
 export const createMessage = (data) => {
     return Message.create(data);
@@ -49,19 +52,66 @@ export const softDeleteMessage = (id) => {
 
 // 1. Find or create a conversation between two users
 export const getOrCreateConversation = async (senderId, receiverId) => {
-    let conversation = await Conversation.findOne({
+    const participantKey = buildParticipantKey(senderId, receiverId);
+    const sortedParticipants = [senderId, receiverId].sort((a, b) =>
+        a.toString().localeCompare(b.toString())
+    );
+
+    const existingByKey = await Conversation.findOne({ participantKey });
+    if (existingByKey) {
+        return existingByKey;
+    }
+
+    const legacyConversation = await Conversation.findOne({
         participants: { $all: [senderId, receiverId] }
     });
-    if (!conversation) {
-        conversation = await Conversation.create({
-            participants: [senderId, receiverId]
-        });
+
+    if (legacyConversation) {
+        if (!legacyConversation.participantKey) {
+            legacyConversation.participantKey = participantKey;
+            try {
+                await legacyConversation.save();
+            } catch (error) {
+                if (error?.code === 11000) {
+                    const collisionConversation = await Conversation.findOne({ participantKey });
+                    if (collisionConversation) {
+                        return collisionConversation;
+                    }
+                }
+                throw error;
+            }
+        }
+        return legacyConversation;
     }
-    return conversation;
+
+    try {
+        return await Conversation.findOneAndUpdate(
+            { participantKey },
+            {
+                $setOnInsert: {
+                    participants: sortedParticipants,
+                    participantKey,
+                },
+            },
+            {
+                new: true,
+                upsert: true,
+            }
+        );
+    } catch (error) {
+        if (error?.code === 11000) {
+            return Conversation.findOne({ participantKey });
+        }
+        throw error;
+    }
 };
 // 2. Update a conversation's last message
 export const updateConversationLastMessage = async (conversationId, messageId) => {
-    return Conversation.findByIdAndUpdate(conversationId, { lastMessage: messageId });
+    return Conversation.findByIdAndUpdate(
+        conversationId,
+        { lastMessage: messageId },
+        { new: true }
+    );
 };
 // 3. Get Paginated Messages (WhatsApp Timeline Style)
 export const getPaginatedMessages = async (conversationId, page = 1, limit = 10) => {
@@ -83,23 +133,93 @@ export const markConversationAsRead = async (conversationId, userId) => {
 };
 
 
-// 4. Get User's Inbox (List of all chats)
-export const getUserInbox = async (userId) => {
-    const conversations = await Conversation.find({ participants: userId })
-        .populate("participants", "name email profileImage")
-        .populate("lastMessage")
-        .sort({ updatedAt: -1 })
-        .lean(); // Lean for performance and to add custom fields
 
-    // Loop through each conversation to add unreadCount
-    const inboxWithCounts = await Promise.all(conversations.map(async (conv) => {
+export const getPreviousConversationUsers = async (userId, { limit = 25, cursor, search } = {}) => {
+    const normalizedLimit = Math.min(Math.max(Number(limit) || 25, 1), 50);
+    const query = { participants: userId };
+
+    if (cursor) {
+        const cursorDate = new Date(cursor);
+        if (!Number.isNaN(cursorDate.getTime())) {
+            query.updatedAt = { $lt: cursorDate };
+        }
+    }
+
+    const conversations = await Conversation.find(query)
+        .populate("participants", "name email profileImage")
+        .populate("lastMessage", "content sender createdAt isDeleted isEdited type")
+        .sort({ updatedAt: -1, _id: -1 })
+        .limit(normalizedLimit + 1)
+        .lean();
+
+    let hasNextPage = conversations.length > normalizedLimit;
+    const pageConversations = hasNextPage ? conversations.slice(0, normalizedLimit) : conversations;
+
+    const searchText = (search || "").trim().toLowerCase();
+    const items = [];
+
+    for (const conv of pageConversations) {
+        const otherUser = (conv.participants || []).find(
+            (participant) => participant?._id?.toString() !== userId.toString()
+        );
+
+        if (!otherUser) {
+            continue;
+        }
+
+        if (searchText) {
+            const name = (otherUser.name || "").toLowerCase();
+            const email = (otherUser.email || "").toLowerCase();
+            if (!name.includes(searchText) && !email.includes(searchText)) {
+                continue;
+            }
+        }
+
         const unreadCount = await Message.countDocuments({
             conversationId: conv._id,
             receiver: userId,
-            isRead: false
+            isRead: false,
         });
-        return { ...conv, unreadCount };
-    }));
 
-    return inboxWithCounts;
+        items.push({
+            conversationId: conv._id,
+            otherUser: {
+                _id: otherUser._id,
+                name: otherUser.name,
+                email: otherUser.email,
+                profileImage: otherUser.profileImage || null,
+            },
+            lastMessage: conv.lastMessage
+                ? {
+                    _id: conv.lastMessage._id,
+                    content: conv.lastMessage.content,
+                    sender: conv.lastMessage.sender,
+                    createdAt: conv.lastMessage.createdAt,
+                    isDeleted: conv.lastMessage.isDeleted,
+                    isEdited: conv.lastMessage.isEdited,
+                    type: conv.lastMessage.type,
+                }
+                : null,
+            unreadCount,
+            lastActivityAt: conv.updatedAt,
+        });
+    }
+
+    if (searchText) {
+        hasNextPage = false;
+    }
+
+    const nextCursor =
+        hasNextPage && items.length
+            ? items[items.length - 1].lastActivityAt.toISOString()
+            : null;
+
+    return {
+        items,
+        pagination: {
+            limit: normalizedLimit,
+            hasNextPage,
+            nextCursor,
+        },
+    };
 };

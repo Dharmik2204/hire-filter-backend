@@ -4,13 +4,12 @@ import { formatError } from "../utils/errorHandler.js";
 import { getIO } from "../socket/socket.js";
 import {
     createMessage,
-    getConversationHistory,
     findMessageById,
     updateMessageContent,
     softDeleteMessage,
     getOrCreateConversation,
     updateConversationLastMessage,
-    getUserInbox,
+    getPreviousConversationUsers,
     getPaginatedMessages,
     markConversationAsRead,
 
@@ -62,10 +61,14 @@ export const sendMessage = async (req, res) => {
         // Also emit to sender (using outbound format)
         io.to(senderId).emit("new_message", messageForSender);
 
-        // 2. IMPORTANT: Tell the receiver to refresh their Inbox list!
+        // 2. Tell both users to refresh their Inbox list
         io.to(receiverId).emit("update_inbox", {
             conversationId: conversation._id,
             lastMessage: messageForReceiver
+        });
+        io.to(senderId).emit("update_inbox", {
+            conversationId: conversation._id,
+            lastMessage: messageForSender
         });
 
         // Finally, map it for the standard HTTP response
@@ -118,13 +121,17 @@ export const getConversation = async (req, res) => {
 };
 
 
-export const getInbox = async (req, res) => {
+export const getPreviousConversations = async (req, res) => {
     try {
         const myId = req.user._id;
-        const inbox = await getUserInbox(myId);
-        res.status(200).json(new ApiResponse(200, inbox, "Inbox fetched"));
+        const limit = parseInt(req.query.limit, 10) || 25;
+        const { cursor, search } = req.query;
+
+        const result = await getPreviousConversationUsers(myId, { limit, cursor, search });
+
+        res.status(200).json(new ApiResponse(200, result, "Previous conversations fetched"));
     } catch (error) {
-        res.status(500).json(formatError(error, 500, "Failed to fetch inbox"));
+        res.status(500).json(formatError(error, 500, "Failed to fetch previous conversations"));
     }
 };
 
