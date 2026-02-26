@@ -12,6 +12,7 @@ import {
     getPreviousConversationUsers,
     getPaginatedMessages,
     markConversationAsRead,
+    countUnreadForConversation,
 
 } from "../repositories/message.repository.js";
 import { searchUsersForMessaging } from "../repositories/user.repository.js";
@@ -55,20 +56,36 @@ export const sendMessage = async (req, res) => {
         // Emit socket event to receiver
         const io = getIO();
 
-        // 1. Tell the receiver there is a new message (using inbound format)
-        io.to(receiverId).emit("new_message", messageForReceiver);
+        // 2. Fetch updated unread count for receiver
+        const unreadCount = await countUnreadForConversation(conversation._id, receiverId);
+
+        // 3. Tell the receiver there is a new message (using inbound format)
+        io.to(receiverId.toString()).emit("new_message", messageForReceiver);
 
         // Also emit to sender (using outbound format)
-        io.to(senderId).emit("new_message", messageForSender);
+        io.to(senderId.toString()).emit("new_message", messageForSender);
 
-        // 2. Tell both users to refresh their Inbox list
-        io.to(receiverId).emit("update_inbox", {
+        // 4. Send Notification to receiver
+        io.to(receiverId.toString()).emit("notification", {
+            type: "message",
+            senderName: req.user.name,
+            senderImage: req.user.profile?.image?.url || null,
+            content: content,
             conversationId: conversation._id,
-            lastMessage: messageForReceiver
+            unreadCount: unreadCount,
+            createdAt: message.createdAt
         });
-        io.to(senderId).emit("update_inbox", {
+
+        // 5. Tell both users to refresh their Inbox list
+        io.to(receiverId.toString()).emit("update_inbox", {
             conversationId: conversation._id,
-            lastMessage: messageForSender
+            lastMessage: messageForReceiver,
+            unreadCount: unreadCount
+        });
+        io.to(senderId.toString()).emit("update_inbox", {
+            conversationId: conversation._id,
+            lastMessage: messageForSender,
+            unreadCount: 0 // Sender has no unread messages in this chat
         });
 
         // Finally, map it for the standard HTTP response

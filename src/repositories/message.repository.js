@@ -146,7 +146,7 @@ export const getPreviousConversationUsers = async (userId, { limit = 25, cursor,
     }
 
     const conversations = await Conversation.find(query)
-        .populate("participants", "name email profileImage")
+        .populate("participants", "name email role profile")
         .populate("lastMessage", "content sender createdAt isDeleted isEdited type")
         .sort({ updatedAt: -1, _id: -1 })
         .limit(normalizedLimit + 1)
@@ -188,7 +188,7 @@ export const getPreviousConversationUsers = async (userId, { limit = 25, cursor,
                 name: otherUser.name,
                 email: otherUser.email,
                 role: otherUser.role,
-                profileImage: otherUser.profileImage || null,
+                profileImage: otherUser.profile?.image?.url || null,
             },
             lastMessage: conv.lastMessage
                 ? {
@@ -223,4 +223,13 @@ export const getPreviousConversationUsers = async (userId, { limit = 25, cursor,
             nextCursor,
         },
     };
+};
+
+// 6. Count unread for a specific conversation and receiver
+export const countUnreadForConversation = async (conversationId, userId) => {
+    return Message.countDocuments({
+        conversationId,
+        receiver: userId,
+        isRead: false
+    });
 };
