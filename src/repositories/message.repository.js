@@ -119,7 +119,7 @@ export const getPaginatedMessages = async (conversationId, page = 1, limit = 10)
 
     // Sort by -1 to get newest first, then reverse on frontend or here
     return Message.find({ conversationId })
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: 1 })
         .skip(skip)
         .limit(limit);
 };
