@@ -7,6 +7,7 @@ import {
   deleteProfile,
   uploadResumeController,
   uploadProfileImageController,
+  uploadCoverImageController,
   getAllUsersAndHrs,
   adminDeleteUser,
 } from "../controllers/users.js";
@@ -53,6 +54,14 @@ router.post(
   authMiddleware,
   upload.single("profileImage"),
   uploadProfileImageController
+);
+
+router.post(
+  "/upload-cover-image",
+  authMiddleware,
+  authorizeRoles("hr", "admin"),
+  upload.single("coverImage"),
+  uploadCoverImageController
 );
 
 router.delete(

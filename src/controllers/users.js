@@ -17,6 +17,7 @@ import { deleteJobsByUserId } from "../repositories/job.repository.js";
 
 import { updateProfileSchema } from "../validations/user.validation.js";
 import { formatUserResponse } from "../utils/userFormatter.js";
+import path from "path";
 
 /* ================= GET PROFILE ================= */
 export const getProfile = async (req, res) => {
@@ -121,11 +122,15 @@ export const deleteProfile = async (req, res) => {
 
     // 2. Clear Cloudinary files
     if (user.profile?.resume?.public_id) {
-      await cloudinary.uploader.destroy(user.profile.resume.public_id, { resource_type: "raw" });
+      await deleteFromCloudinary(user.profile.resume.public_id, "raw");
     }
 
     if (user.profile?.image?.public_id) {
-      await cloudinary.uploader.destroy(user.profile.image.public_id);
+      await deleteFromCloudinary(user.profile.image.public_id);
+    }
+
+    if (user.profile?.coverImage?.public_id) {
+      await deleteFromCloudinary(user.profile.coverImage.public_id);
     }
 
     // 3. Delete associated data
@@ -184,11 +189,15 @@ export const adminDeleteUser = async (req, res) => {
 
     // 2. Clear Cloudinary files
     if (user.profile?.resume?.public_id) {
-      await cloudinary.uploader.destroy(user.profile.resume.public_id, { resource_type: "raw" });
+      await deleteFromCloudinary(user.profile.resume.public_id, "raw");
     }
 
     if (user.profile?.image?.public_id) {
-      await cloudinary.uploader.destroy(user.profile.image.public_id);
+      await deleteFromCloudinary(user.profile.image.public_id);
+    }
+
+    if (user.profile?.coverImage?.public_id) {
+      await deleteFromCloudinary(user.profile.coverImage.public_id);
     }
 
     // 3. Delete associated data
@@ -210,8 +219,8 @@ export const adminDeleteUser = async (req, res) => {
   }
 };
 
-/* ===============uploadResume==========  */
-
+import { uploadOnCloudinary, deleteFromCloudinary } from "../config/cloudinary.js";
+import fs from "fs";
 
 /* ======================
    UPLOAD RESUME
@@ -227,27 +236,42 @@ export const uploadResumeController = async (req, res) => {
       return res.status(401).json(new ApiError(401, "User not found"));
     }
 
-    /* 🔥 DELETE OLD RESUME FROM CLOUDINARY */
+    // 🔥 CLEANUP OLD RESUME
     if (user.profile?.resume?.public_id) {
-      await cloudinary.uploader.destroy(
-        user.profile.resume.public_id,
-        { resource_type: "raw" }
-      );
+      /* IF CLOUDINARY */
+      await deleteFromCloudinary(user.profile.resume.public_id, "raw");
+    } else if (user.profile?.resume?.url?.includes("/temp/")) {
+      /* IF LOCAL FALLBACK */
+      try {
+        const oldFileName = user.profile.resume.url.split("/").pop();
+        const oldPath = path.join("public", "temp", oldFileName);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch (e) { console.error("Old local resume cleanup failed:", e); }
+    }
+
+    /* 🚀 UPLOAD TO CLOUDINARY WITH LOCAL FALLBACK */
+    const cloudinaryResponse = await uploadOnCloudinary(req.file.path, "resumes");
+
+    let resumeData;
+    if (cloudinaryResponse) {
+      resumeData = {
+        url: cloudinaryResponse.secure_url,
+        public_id: cloudinaryResponse.public_id,
+      };
+      fs.unlinkSync(req.file.path);
+    } else {
+      resumeData = {
+        url: `${req.protocol}://${req.get("host")}/temp/${req.file.filename}`,
+        public_id: null,
+      };
     }
 
     /* ✅ UPDATE USER RESUME */
     await updateUser(user._id, {
-      $set: {
-        "profile.resume": {
-          url: req.file.path,
-          public_id: req.file.filename,
-        },
-      },
+      $set: { "profile.resume": resumeData },
     });
 
-    res.status(200).json(
-      new ApiResponse(200, null, "Resume uploaded successfully")
-    );
+    res.status(200).json(new ApiResponse(200, resumeData, "Resume uploaded successfully"));
 
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Resume processing failed"));
@@ -261,9 +285,7 @@ export const uploadResumeController = async (req, res) => {
 export const uploadProfileImageController = async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json(
-        new ApiError(400, "Profile image is required")
-      );
+      return res.status(400).json(new ApiError(400, "Profile image is required"));
     }
 
     const user = await findUserById(req.user._id);
@@ -271,28 +293,100 @@ export const uploadProfileImageController = async (req, res) => {
       return res.status(401).json(new ApiError(401, "User not found"));
     }
 
-    /* 🔥 DELETE OLD IMAGE FROM CLOUDINARY */
+    // 🔥 CLEANUP OLD PROFILE IMAGE
     if (user.profile?.image?.public_id) {
-      await cloudinary.uploader.destroy(
-        user.profile.image.public_id
-      );
+      /* IF CLOUDINARY */
+      await deleteFromCloudinary(user.profile.image.public_id);
+    } else if (user.profile?.image?.url?.includes("/temp/")) {
+      /* IF LOCAL FALLBACK */
+      try {
+        const oldFileName = user.profile.image.url.split("/").pop();
+        const oldPath = path.join("public", "temp", oldFileName);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch (e) { console.error("Old local image cleanup failed:", e); }
+    }
+
+    /* 🚀 UPLOAD TO CLOUDINARY WITH LOCAL FALLBACK */
+    const cloudinaryResponse = await uploadOnCloudinary(req.file.path, "profile-images");
+
+    let imageData;
+    if (cloudinaryResponse) {
+      imageData = {
+        url: cloudinaryResponse.secure_url,
+        public_id: cloudinaryResponse.public_id,
+      };
+      fs.unlinkSync(req.file.path);
+    } else {
+      imageData = {
+        url: `${req.protocol}://${req.get("host")}/temp/${req.file.filename}`,
+        public_id: null,
+      };
     }
 
     /* ✅ UPDATE PROFILE IMAGE */
-    const updatedUser = await updateUser(user._id, {
-      $set: {
-        "profile.image": {
-          url: req.file.path,
-          public_id: req.file.filename,
-        },
-      },
+    await updateUser(user._id, {
+      $set: { "profile.image": imageData },
     });
 
-    res.status(200).json(
-      new ApiResponse(200, updatedUser.profile.image.url, "Profile image uploaded successfully")
-    );
+    res.status(200).json(new ApiResponse(200, imageData, "Profile image uploaded successfully"));
 
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Profile image upload failed"));
+  }
+};
+
+/* ======================
+   UPLOAD COVER IMAGE (HR BANNER)
+====================== */
+export const uploadCoverImageController = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json(new ApiError(400, "Cover image is required"));
+    }
+
+    const user = await findUserById(req.user._id);
+    if (!user) {
+      return res.status(401).json(new ApiError(401, "User not found"));
+    }
+
+    // 🔥 CLEANUP OLD COVER IMAGE
+    if (user.profile?.coverImage?.public_id) {
+      /* IF CLOUDINARY */
+      await deleteFromCloudinary(user.profile.coverImage.public_id);
+    } else if (user.profile?.coverImage?.url?.includes("/temp/")) {
+      /* IF LOCAL FALLBACK */
+      try {
+        const oldFileName = user.profile.coverImage.url.split("/").pop();
+        const oldPath = path.join("public", "temp", oldFileName);
+        if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+      } catch (e) { console.error("Old local cover cleanup failed:", e); }
+    }
+
+    /* 🚀 UPLOAD TO CLOUDINARY WITH LOCAL FALLBACK */
+    const cloudinaryResponse = await uploadOnCloudinary(req.file.path, "cover-images");
+
+    let coverData;
+    if (cloudinaryResponse) {
+      coverData = {
+        url: cloudinaryResponse.secure_url,
+        public_id: cloudinaryResponse.public_id,
+      };
+      fs.unlinkSync(req.file.path);
+    } else {
+      coverData = {
+        url: `${req.protocol}://${req.get("host")}/temp/${req.file.filename}`,
+        public_id: null,
+      };
+    }
+
+    /* ✅ UPDATE COVER IMAGE */
+    await updateUser(user._id, {
+      $set: { "profile.coverImage": coverData },
+    });
+
+    res.status(200).json(new ApiResponse(200, coverData, "Cover image uploaded successfully"));
+
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Cover image upload failed"));
   }
 };

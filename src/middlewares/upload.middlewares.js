@@ -1,36 +1,25 @@
 import multer from "multer";
-import { CloudinaryStorage } from "multer-storage-cloudinary";
-import cloudinary from "../config/cloudinary.js";
+import path from "path";
+import fs from "fs";
 import { ApiError } from "../utils/ApiError.js";
 
-// cloudinary storage
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: async (req, file) => {
-    // RESUME
-    if (file.fieldname === "resume") {
-      return {
-        folder: "resumes",
-        resource_type: "raw", // important for pdf/doc
-        public_id: `resume-${Date.now()}-${file.originalname}`,
-      };
-    }
+// Ensure temp directory exists
+const tempDir = "public/temp";
+if (!fs.existsSync(tempDir)) {
+  fs.mkdirSync(tempDir, { recursive: true });
+}
 
-    // PROFILE IMAGE
-    if (file.fieldname === "profileImage") {
-      return {
-        folder: "profile-images",
-        resource_type: "image",
-        public_id: `profile-${Date.now()}-${file.originalname}`,
-      };
-    }
-
-    throw new ApiError(400, "Invalid upload field");
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, tempDir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname));
   },
 });
 
 const fileFilter = (req, file, cb) => {
-  // file filter (same logic as your local)
   // resume validation
   if (file.fieldname === "resume") {
     if (
@@ -39,13 +28,12 @@ const fileFilter = (req, file, cb) => {
     ) {
       cb(null, true);
     } else {
-      console.warn("Resume file rejected: Invalid MIME type", file.mimetype);
       cb(new ApiError(400, "Only PDF or DOC/DOCX allowed for resume"), false);
     }
   }
 
   // image validation
-  else if (file.fieldname === "profileImage") {
+  else if (file.fieldname === "profileImage" || file.fieldname === "coverImage") {
     if (
       file.mimetype === "image/jpeg" ||
       file.mimetype === "image/png" ||
@@ -58,7 +46,6 @@ const fileFilter = (req, file, cb) => {
   }
 
   else {
-    console.warn("Unsupported file field:", file.fieldname);
     cb(new ApiError(400, "Unsupported file field"), false);
   }
 };
@@ -66,7 +53,7 @@ const fileFilter = (req, file, cb) => {
 const upload = multer({
   storage,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB (same as before)
+    fileSize: 5 * 1024 * 1024, // 5MB
   },
   fileFilter,
 });

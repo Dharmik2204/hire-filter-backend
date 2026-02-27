@@ -90,6 +90,11 @@ const userSchema = new mongoose.Schema(
         public_id: String,
       },
 
+      coverImage: {
+        url: String,
+        public_id: String,
+      },
+
       portfolio: String, // GitHub / Portfolio URL
       bio: String,
     },

@@ -22,7 +22,9 @@ export const formatUserResponse = (user) => {
             if (userObj.profile.image) {
                 filteredProfile.image = userObj.profile.image;
             }
-            // Add other HR/Admin specific profile fields here if they exist in the future
+            if (userObj.profile.coverImage) {
+                filteredProfile.coverImage = userObj.profile.coverImage;
+            }
             userObj.profile = filteredProfile;
         }
     }

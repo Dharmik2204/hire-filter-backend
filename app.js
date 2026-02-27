@@ -18,6 +18,7 @@ const app = express();
 app.set("trust proxy", 1);
 
 app.use(express.json());
+app.use(express.static("public"));
 
 // JSON Syntax Error Handler
 app.use((err, req, res, next) => {
