@@ -83,14 +83,42 @@ const applicationSchema = new mongoose.Schema(
       trim: true,
     },
 
+    skillsScore: {
+      type: Number,
+      default: 0,
+    },
+
+    examScore: {
+      type: Number,
+      default: 0,
+    },
+
+    examRawMarks: {
+      type: Number,
+      default: 0,
+    },
+
+    examTotalMarks: {
+      type: Number,
+      default: 0,
+    },
+
+    examResultStatus: {
+      type: String,
+      enum: ["pass", "fail", "pending"],
+      default: "pending",
+    },
+
     status: {
       type: String,
       enum: [
         "applied",
         "screening",
         "interviewing",
+        "shortlisted",
         "offer",
         "rejected",
+        "hired",
         "archived"
       ],
       default: "applied",

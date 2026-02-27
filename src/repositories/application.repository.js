@@ -10,6 +10,11 @@ export const createApplication = async ({
     education,
     phone,
     score,
+    skillsScore,
+    examScore,
+    examRawMarks,
+    examTotalMarks,
+    examResultStatus,
     linkedinProfile,
     portfolioWebsite,
     workExperience,
@@ -27,6 +32,11 @@ export const createApplication = async ({
         education,
         phone,
         score,
+        skillsScore,
+        examScore,
+        examRawMarks,
+        examTotalMarks,
+        examResultStatus,
         linkedinProfile,
         portfolioWebsite,
         workExperience,
@@ -67,6 +77,20 @@ export const updateApplicationScore = (id, score) => {
     return Application.findByIdAndUpdate(
         id,
         { score },
+        { new: true }
+    );
+};
+
+export const updateApplicationScoring = (id, { score, examScore, examRawMarks, examTotalMarks, examResultStatus }) => {
+    return Application.findByIdAndUpdate(
+        id,
+        {
+            score,
+            examScore,
+            examRawMarks,
+            examTotalMarks,
+            examResultStatus
+        },
         { new: true }
     );
 };
@@ -130,16 +154,27 @@ export const getRankedApplicationsWithExamDetails = async (jobId, page = 1, limi
     };
 };
 
-export const updateApplicationRanks = async (rankings) => {
-    // rankings = [{ applicationId: "...", rank: 1 }, ... ]
-    const bulkOps = rankings.map(({ applicationId, rank }) => ({
-        updateOne: {
-            filter: { _id: applicationId },
-            update: { $set: { rank } }
-        }
-    }));
 
-    return Application.bulkWrite(bulkOps);
+export const countUserApplicationsByStatus = (userId, status) => {
+    const query = { user: userId };
+    if (status) query.status = status;
+    return Application.countDocuments(query);
+};
+
+export const countHrApplicationsByStatus = async (hrId, status) => {
+    const { Job } = await import("../models/job.models.js");
+    const hrJobs = await Job.find({ createdBy: hrId }).select("_id");
+    const jobIds = hrJobs.map((j) => j._id);
+
+    const query = { job: { $in: jobIds } };
+    if (status) query.status = status;
+    return Application.countDocuments(query);
+};
+
+export const findApplicationWithDetails = (id) => {
+    return Application.findById(id)
+        .populate("user", "name email phone profile")
+        .populate("job", "jobTitle companyName");
 };
 
 

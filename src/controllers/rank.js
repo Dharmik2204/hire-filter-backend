@@ -2,7 +2,7 @@ import { getRankedApplicationsWithExamDetails, updateApplicationStatus } from ".
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { formatError } from "../utils/errorHandler.js";
-import { updateRankStatusSchema, getRankedCandidatesSchema, assignRankSchema } from "../validations/rank.validation.js";
+import { updateRankStatusSchema, getRankedCandidatesSchema } from "../validations/rank.validation.js";
 
 /* ======================
    GET RANKED CANDIDATES (HR/ADMIN)
@@ -22,8 +22,44 @@ export const getRankedCandidates = async (req, res) => {
     // Pass pagination to repository
     const result = await getRankedApplicationsWithExamDetails(jobId, parseInt(page), parseInt(limit));
 
+    // Refine response for a professional HR Analytics view
+    const refinedCandidates = result.candidates.map(app => ({
+      applicationId: app._id,
+      candidate: {
+        name: app.user?.name,
+        email: app.user?.email,
+        phone: app.phone || app.user?.phone,
+        experience: app.experience
+      },
+      scoring: {
+        skillsScore: app.skillsScore,
+        examScore: app.examScore,
+        totalScore: app.score,
+        rank: app.rank
+      },
+      examAnalytics: {
+        rawMarks: app.examRawMarks,
+        totalMarks: app.examTotalMarks,
+        status: app.examResultStatus,
+        attemptId: app.examAttempt?._id
+      },
+      skillsAnalysis: {
+        matched: app.matchedSkills,
+        missing: app.missingSkills
+      },
+      status: app.status,
+      appliedAt: app.createdAt
+    }));
+
     res.status(200).json(
-      new ApiResponse(200, result, "Ranked candidates fetched successfully")
+      new ApiResponse(200, {
+        candidates: refinedCandidates,
+        pagination: {
+          total: result.total,
+          page: result.page,
+          totalPages: result.totalPages
+        }
+      }, "Ranked candidates fetched successfully")
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch ranked candidates"));
@@ -92,30 +128,6 @@ export const updateStatus = async (req, res) => {
   }
 };
 
-/* ======================
-   ASSIGN RANK (HR/ADMIN)
-====================== */
-export const assignRank = async (req, res) => {
-  try {
-    const { error, value } = assignRankSchema.validate(req.body, { abortEarly: false });
-
-    if (error) {
-      const errorMessages = error.details.map((detail) => detail.message);
-      return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
-    }
-
-    const { rankings } = value;
-    const { updateApplicationRanks } = await import("../repositories/application.repository.js");
-
-    await updateApplicationRanks(rankings);
-
-    res.status(200).json(
-      new ApiResponse(200, null, "Ranks assigned successfully")
-    );
-  } catch (error) {
-    res.status(500).json(formatError(error, 500, "Failed to assign ranks"));
-  }
-};
 
 /* ======================
    GET PUBLIC RANK LIST (USER)
@@ -142,11 +154,12 @@ export const getPublicRankList = async (req, res) => {
     // The repo update is next step. We assume it returns the structured object.
 
     const publicCandidates = result.candidates
-      .filter(app => app.rank > 0)
       .map(app => ({
         rank: app.rank,
         maskedName: app.user.name.split(" ")[0] + "***", // Masked Name
-        score: app.examAttempt ? app.examAttempt.score : app.score
+        skillsScore: app.skillsScore,
+        examScore: app.examScore,
+        totalScore: app.score
       }));
 
     res.status(200).json(

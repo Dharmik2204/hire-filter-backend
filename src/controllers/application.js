@@ -10,12 +10,24 @@ import mongoose from "mongoose";
 
 
 import { getJobById } from "../repositories/job.repository.js";
-import { findUserById } from "../repositories/user.repository.js";
+import {
+  findUserById,
+  incrementProfileVisits
+} from "../repositories/user.repository.js";
+import {
+  getOrCreateConversation,
+  createMessage,
+  updateConversationLastMessage
+} from "../repositories/message.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { formatError } from "../utils/errorHandler.js";
-import { createApplicationSchema, updateApplicationSchema } from "../validations/application.validation.js";
+import {
+  createApplicationSchema,
+  updateApplicationSchema
+} from "../validations/application.validation.js";
 import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
+import { findApplicationWithDetails } from "../repositories/application.repository.js";
 
 /* ================= APPLY JOB & Create Application================= */
 
@@ -84,11 +96,11 @@ export const applyJobController = async (req, res) => {
     } = value;
 
     /* ================= SCORING LOGIC ================= */
-    let score = 0;
+    let skillsScore = 0;
     const matchedSkills = [];
     const missingSkills = [];
 
-    // 1. Skills Scoring (60%)
+    // 1. Skills Scoring (50% Weight)
     if (job.requiredSkills && job.requiredSkills.length > 0) {
       const jobSkills = job.requiredSkills.map(s => s.toLowerCase());
       const userSkills = applicationSkills.map(s => s.toLowerCase());
@@ -101,51 +113,27 @@ export const applyJobController = async (req, res) => {
         }
       });
 
-      const skillScore = (matchedSkills.length / jobSkills.length) * 60;
-      score += skillScore;
+      // (Match Ratio) * 50
+      skillsScore = (matchedSkills.length / jobSkills.length) * 50;
     } else {
-      score += 60; // No required skills, full marks for skills section
+      // If no required skills are defined, the candidate gets full credit for the skills portion
+      skillsScore = 50;
     }
 
-    // 2. Experience Scoring (30%)
+    // Handle Fresher / Experience Validation
+    // Even if weight is removed from score, we still check against job requirements
     const minExp = job.experience?.min || 0;
-    if (applicationExperience >= minExp) {
-      score += 30;
-    } else if (minExp > 0) {
-      score += (applicationExperience / minExp) * 30;
-    } else {
-      score += 30;
+    const maxExp = job.experience?.max || Infinity;
+
+    // Check if within range (Optional: you might want to allow application even if out of range, 
+    // but here we check for validity if specified)
+    if (applicationExperience < minExp && minExp > 0) {
+      // We can log this or handle it as a soft warning, for now we keep the application valid 
+      // but it gets no extra points (weight is 0 anyway).
     }
 
-    // 3. Education Scoring (10%)
-    const educationPriority = {
-      "Any": 0,
-      "10th": 1,
-      "12th": 2,
-      "Diploma": 3,
-      "Graduate": 4,
-      "Post-Graduate": 5
-    };
-
-    const reqEduLevel = educationPriority[job.education] || 0;
-    let maxUserEduLevel = 0;
-
-    if (Array.isArray(applicationEducation)) {
-      applicationEducation.forEach(edu => {
-        const level = educationPriority[edu.degree] || 0;
-        if (level > maxUserEduLevel) maxUserEduLevel = level;
-      });
-    } else if (typeof applicationEducation === 'string') {
-      maxUserEduLevel = educationPriority[applicationEducation] || 0;
-    }
-
-    if (maxUserEduLevel >= reqEduLevel) {
-      score += 10;
-    } else if (reqEduLevel > 0) {
-      score += (maxUserEduLevel / reqEduLevel) * 10;
-    } else {
-      score += 10;
-    }
+    // Final Initial Score (Skills Only at this stage)
+    const totalScore = Math.round(skillsScore);
 
     const application = await createApplication({
       jobId,
@@ -156,7 +144,12 @@ export const applyJobController = async (req, res) => {
       experience: applicationExperience,
       education: applicationEducation,
       phone: applicationPhone,
-      score: Math.round(score),
+      score: totalScore,
+      skillsScore: Math.round(skillsScore),
+      examScore: 0,
+      examRawMarks: 0,
+      examTotalMarks: 0,
+      examResultStatus: "pending",
       linkedinProfile: applicationLinkedin,
       portfolioWebsite: applicationPortfolio,
       workExperience: applicationWorkExp,
@@ -165,8 +158,16 @@ export const applyJobController = async (req, res) => {
       desiredSalary: applicationSalary
     });
 
+    // 🎯 Trigger Re-ranking immediately so the candidate appears in lists
+    try {
+      const { recalculateRanks } = await import("../utils/rank.utils.js");
+      await recalculateRanks(jobId);
+    } catch (rankError) {
+      console.error("Initial ranking failed:", rankError);
+    }
+
     res.status(201).json(
-      new ApiResponse(201, application, "Job applied successfully with score " + Math.round(score))
+      new ApiResponse(201, application, `Job applied successfully. Skills Match Score: ${Math.round(skillsScore)}/50`)
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Apply job failed"));
@@ -226,7 +227,7 @@ export const updateApplicationStatusController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Application ID is not valid"));
     }
 
-    const { error, value } = updateApplicationStatusSchema.validate(req.body, { abortEarly: false });
+    const { error, value } = updateApplicationSchema.validate(req.body, { abortEarly: false });
 
     if (error) {
       const errorMessages = error.details.map((detail) => detail.message);
@@ -247,11 +248,61 @@ export const updateApplicationStatusController = async (req, res) => {
       return res.status(404).json(new ApiError(404, "Application not found", ["Application not found"]));
     }
 
+    /* 🔥 NOTIFICATION ON HIRED */
+    if (status === "hired") {
+      try {
+        const candidateId = updatedApplication.user;
+        const hrId = req.user._id;
+
+        const conversation = await getOrCreateConversation(hrId, candidateId);
+
+        const notification = await createMessage({
+          conversationId: conversation._id,
+          sender: hrId,
+          receiver: candidateId,
+          content: `Congratulations! You have been hired for the position. Our team will contact you soon.`,
+          type: "notification"
+        });
+
+        await updateConversationLastMessage(conversation._id, notification._id);
+
+      } catch (notifError) {
+        console.error("Failed to send hiring notification:", notifError);
+        // We don't fail the whole request because notification failed
+      }
+    }
+
     res.status(200).json(
       new ApiResponse(200, updatedApplication, "Application status updated")
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to update application status"));
+  }
+};
+
+/* ================ get single Application / Profile visit tracking =============== */
+export const getApplicationDetailsController = async (req, res) => {
+  try {
+    const { applicationId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(applicationId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Application ID"));
+    }
+
+    const application = await findApplicationWithDetails(applicationId);
+    if (!application) {
+      return res.status(404).json(new ApiError(404, "Application not found"));
+    }
+
+    // If viewer is HR or Admin, increment the candidate's profile visits
+    if (req.user.role === "hr" || req.user.role === "admin") {
+      await incrementProfileVisits(application.user._id);
+    }
+
+    res.status(200).json(
+      new ApiResponse(200, application, "Application details fetched successfully")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch application details"));
   }
 };
 

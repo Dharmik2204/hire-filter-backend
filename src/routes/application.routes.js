@@ -6,8 +6,8 @@ import {
   updateApplicationStatusController,
   applyJobController,
   getMyApplicationsController,
-  deleteApplicationController
-
+  deleteApplicationController,
+  getApplicationDetailsController
 } from "../controllers/application.js";
 
 const router = express.Router();
@@ -25,6 +25,12 @@ router.get(
   authMiddleware,
   getMyApplicationsController
 )
+
+router.get(
+  "/:applicationId",
+  authMiddleware,
+  getApplicationDetailsController
+);
 
 /* ================= HR / ADMIN VIEW APPLICATIONS ================= */
 router.get(

@@ -67,7 +67,7 @@ export const createApplicationSchema = Joi.object({
 
 export const updateApplicationSchema = Joi.object({
     status: Joi.string()
-        .valid("applied", "screening", "interviewing", "offer", "rejected", "archived")
+        .valid("applied", "screening", "interviewing", "shortlisted", "offer", "rejected", "hired", "archived")
         .messages({
             "any.only": "Invalid status value",
         }),

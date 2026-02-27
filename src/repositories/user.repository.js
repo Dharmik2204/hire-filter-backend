@@ -12,6 +12,10 @@ export const findUserById = (id) => {
   return User.findOne({ _id: id });
 };
 
+export const incrementProfileVisits = (userId) => {
+  return User.findByIdAndUpdate(userId, { $inc: { profileVisits: 1 } }, { new: true });
+};
+
 export const createUser = (data) => {
   return User.create(data);
 };

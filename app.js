@@ -11,6 +11,7 @@ import examRoutes from "./src/routes/exam.routes.js";
 import rankRoutes from "./src/routes/rank.routes.js";
 import messageRoutes from "./src/routes/message.routes.js";
 import healthRoutes from "./src/routes/health.routes.js";
+import dashboardRoutes from "./src/routes/dashboard.routes.js";
 
 const app = express();
 
@@ -44,6 +45,7 @@ app.use("/api/application", application);
 app.use("/api/exams", examRoutes);
 app.use("/api/ranks", rankRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/dashboard", dashboardRoutes);
 
 import { globalErrorHandler } from "./src/middlewares/error.middlewares.js";
 app.use(globalErrorHandler);

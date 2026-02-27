@@ -240,64 +240,78 @@ export const submitExamController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Exam already submitted", ["Exam already submitted"]));
     }
 
-    // 1. Calculate Score
-    let score = 0;
+    // 1. Calculate Score (Raw Marks)
+    let obtainedMarks = 0;
+    let totalPossibleMarks = 0;
+
     if (attempt.questions && Array.isArray(attempt.questions)) {
+      attempt.questions.forEach(q => {
+        totalPossibleMarks += (q.marks || 1);
+      });
+
       for (const answer of answers) {
-        // Safe navigation for questionId
-        // Match by subdocument ID (Transient ID) - This works for both AI and DB questions
         const question = attempt.questions.find(
           (q) => q._id && answer.questionId && q._id.toString() === answer.questionId.toString()
         );
 
         if (question && question.correctAnswer === answer.selectedOption) {
-          score += (question.marks || 1);
+          obtainedMarks += (question.marks || 1);
         }
       }
     }
 
-    const exam = await findExamById(attempt.exam); // Ensure we use correct field 'exam' from attempt model
+    const exam = await findExamById(attempt.exam);
     if (!exam) {
-      // Fallback or error if exam definition is missing, but we should probably still save the attempt
       console.error(`Exam definition not found for attempt ${attemptId}`);
     }
 
     const passingMarks = exam ? exam.passingMarks : 0;
-    const resultStatus = score >= passingMarks ? "pass" : "fail";
+    const resultStatus = obtainedMarks >= passingMarks ? "pass" : "fail";
 
-    // 2. Save Answers & Update Request Status
-    // We update the attempt with the calculated result immediately
+    // 2. Save Answers & Update Exam Attempt Status
     const updatedAttempt = await updateExamScore(
       attemptId,
-      score,
+      obtainedMarks,
       resultStatus
     );
 
-    // Also save the specific answers provided by user
     await saveExamAnswers(attemptId, answers);
 
-
     // 3. Sync Score to Application & Auto-Rank
-    // We import the new utility to recalculate ranks
-    const { recalculateRanks } = await import("../utils/rank.utils.js");
-
-    // Update Application Score - NOTE: for now we just set exam score. 
-    // If you want composite score (Skills + Exam), we should calculate that here or in repo.
-    // For simplicity in this step, we push the EXAM SCORE to the application.
     if (attempt.application) {
-      await updateApplicationScore(attempt.application, score);
-    }
+      const application = await findApplicationWithDetails(attempt.application);
+      if (application) {
+        // Normalized Exam Score (50%)
+        const examScoreWeighted = totalPossibleMarks > 0 ? (obtainedMarks / totalPossibleMarks) * 50 : 0;
 
-    // Trigger Re-ranking for the job
-    // We do this asynchronously to not block the response response time significantly, 
-    // or await it if strict consistency is needed. Awaiting is safer for "instant" rank feedback.
-    if (exam && exam.job) {
-      await recalculateRanks(exam.job);
+        // Skills Score is already stored in the application (calculated during applyJob)
+        const skillsScore = application.skillsScore || 0;
+
+        // Total Composite Score
+        const finalScore = Math.round(skillsScore + examScoreWeighted);
+
+        // Use the new repository function to update all scoring analytics at once
+        const { updateApplicationScoring } = await import("../repositories/application.repository.js");
+        await updateApplicationScoring(attempt.application, {
+          score: finalScore,
+          examScore: Math.round(examScoreWeighted),
+          examRawMarks: obtainedMarks,
+          examTotalMarks: totalPossibleMarks,
+          examResultStatus: resultStatus
+        });
+
+        // Trigger Re-ranking for the job
+        const { recalculateRanks } = await import("../utils/rank.utils.js");
+        if (exam && exam.job) {
+          await recalculateRanks(exam.job);
+        }
+      }
     }
 
     res.status(200).json(
       new ApiResponse(200, {
-        score,
+        score: obtainedMarks,
+        totalMarks: totalPossibleMarks,
         status: resultStatus,
       }, "Exam submitted and evaluated successfully")
     );
