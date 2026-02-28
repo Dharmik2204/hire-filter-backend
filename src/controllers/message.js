@@ -108,7 +108,7 @@ export const getConversation = async (req, res) => {
         const { userId } = req.params;
         const myId = req.user._id;
         const page = parseInt(req.query.page) || 1;
-        const limit = parseInt(req.query.limit) || 20;
+        const limit = Math.min(parseInt(req.query.limit) || 50, 100);
 
         // Find the conversation ID
         const conversation = await getOrCreateConversation(myId, userId);
@@ -141,7 +141,7 @@ export const getConversation = async (req, res) => {
 export const getPreviousConversations = async (req, res) => {
     try {
         const myId = req.user._id;
-        const limit = parseInt(req.query.limit, 10) || 25;
+        const limit = Math.min(parseInt(req.query.limit, 10) || 50, 100);
         const { cursor, search } = req.query;
 
         const result = await getPreviousConversationUsers(myId, { limit, cursor, search });
