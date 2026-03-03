@@ -1,85 +1,130 @@
-import request from 'supertest';
-import app from '../../app.js';
-import mongoose from 'mongoose';
-import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
+import mongoose from "mongoose";
+import { jest } from "@jest/globals";
 
-dotenv.config();
+const mockGetJobByIdInternal = jest.fn();
+const mockFindByJobAndCandidate = jest.fn();
+const mockExamAttemptFindOne = jest.fn();
 
-/**
- * Security Regression Test
- * Purpose: Ensure candidates cannot see correct answers in their exam results.
- */
-describe('Exam API Security Regression', () => {
-    let userToken;
-    let userId = new mongoose.Types.ObjectId();
-    let examId = new mongoose.Types.ObjectId();
+jest.unstable_mockModule("../repositories/job.repository.js", () => ({
+  getJobByIdInternal: mockGetJobByIdInternal,
+}));
 
-    beforeAll(async () => {
-        // Generate a mock token for a candidate
-        userToken = jwt.sign(
-            { _id: userId, role: 'user' },
-            process.env.JWT_SECRET || 'secret',
-            { expiresIn: '1h' }
-        );
+jest.unstable_mockModule("../repositories/application.repository.js", () => ({
+  findApplicationWithDetails: jest.fn(),
+  findByJobAndCandidate: mockFindByJobAndCandidate,
+}));
+
+jest.unstable_mockModule("../repositories/exam.repository.js", () => ({
+  createExam: jest.fn(),
+  findExamsByJobId: jest.fn(),
+  findExamById: jest.fn(),
+  getRandomQuestions: jest.fn(),
+  createExamAttempt: jest.fn(),
+  findAttemptByExamAndApplication: jest.fn(),
+  findAttemptByExamAndUser: jest.fn(),
+  findAttemptById: jest.fn(),
+  getAttemptsByExamId: jest.fn(),
+  deleteExamById: jest.fn(),
+  getQuestionsByExamId: jest.fn(),
+  deleteQuestionById: jest.fn(),
+  bulkInsertQuestions: jest.fn(),
+  findExamByTitle: jest.fn(),
+}));
+
+jest.unstable_mockModule("../models/exam.models.js", () => ({
+  ExamAttempt: {
+    findOne: mockExamAttemptFindOne,
+  },
+}));
+
+jest.unstable_mockModule("../utils/gemini.utils.js", () => ({
+  generateQuestionsAI: jest.fn(),
+}));
+
+jest.unstable_mockModule("../services/exam-evaluation.service.js", () => ({
+  enqueueExamEvaluation: jest.fn(),
+}));
+
+const { getMyExamResult, getExamByJobController } = await import("../controllers/exam.js");
+
+const createMockRes = () => {
+  const res = {};
+  res.statusCode = 200;
+  res.payload = null;
+  res.status = jest.fn((code) => {
+    res.statusCode = code;
+    return res;
+  });
+  res.json = jest.fn((body) => {
+    res.payload = body;
+    return res;
+  });
+  return res;
+};
+
+describe("Exam API Security Regression", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe("getMyExamResult", () => {
+    it("should never expose correctAnswer in detailedQuestions", async () => {
+      const examId = new mongoose.Types.ObjectId().toString();
+      const userId = new mongoose.Types.ObjectId();
+
+      mockExamAttemptFindOne.mockResolvedValue({
+        status: "evaluated",
+        score: 7,
+        result: "pass",
+        feedback: "Well done",
+        answers: [{ questionId: "q1", selectedAnswer: "A" }],
+        questions: [
+          {
+            toObject: () => ({
+              questionId: "q1",
+              question: "2 + 2 = ?",
+              options: ["2", "3", "4", "5"],
+              correctAnswer: "4",
+              marks: 1,
+            }),
+          },
+        ],
+      });
+
+      const req = {
+        params: { examId },
+        user: { _id: userId, role: "user" },
+      };
+      const res = createMockRes();
+
+      await getMyExamResult(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.payload?.data?.detailedQuestions?.[0]).not.toHaveProperty("correctAnswer");
+      expect(JSON.stringify(res.payload)).not.toMatch(/"correctAnswer":/);
     });
+  });
 
-    afterAll(async () => {
-        // Ensure mongoose connection is closed if opened by app
-        if (mongoose.connection.readyState !== 0) {
-            await mongoose.connection.close();
-        }
+  describe("getExamByJobController", () => {
+    it("should block candidates who have not applied for the job", async () => {
+      const jobId = new mongoose.Types.ObjectId().toString();
+
+      mockGetJobByIdInternal.mockResolvedValue({
+        _id: jobId,
+        createdBy: new mongoose.Types.ObjectId(),
+      });
+      mockFindByJobAndCandidate.mockResolvedValue(null);
+
+      const req = {
+        params: { jobId },
+        user: { _id: new mongoose.Types.ObjectId(), role: "user" },
+      };
+      const res = createMockRes();
+
+      await getExamByJobController(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(403);
+      expect(res.payload?.message).toContain("Access denied");
     });
-
-    describe('GET /api/exams/my-result/:examId', () => {
-        it('should NOT contain correctAnswer in detailedQuestions or questions array', async () => {
-            // Note: This test assumes the controller logic is executed.
-            // If the database is not connected/accessible, we might need a more complex mock.
-            // However, we want to assert the JSON structure returned by the controller.
-
-            const res = await request(app)
-                .get(`/api/exams/my-result/${examId}`)
-                .set('Authorization', `Bearer ${userToken}`);
-
-            // If the attempt is not found, we expect a 404, which is safe.
-            // If the attempt IS found (evaluation finished), we check the data.
-            if (res.status === 200) {
-                const data = res.body.data;
-
-                // 1. Check detailedQuestions
-                if (data.detailedQuestions && data.detailedQuestions.length > 0) {
-                    data.detailedQuestions.forEach(q => {
-                        expect(q).not.toHaveProperty('correctAnswer');
-                        // Ensure no nested questionId objects contain the answer
-                        if (q.questionId) {
-                            expect(q.questionId).not.toHaveProperty('correctAnswer');
-                        }
-                    });
-                }
-
-                // 2. Double check the entire response body for the string "correctAnswer" 
-                // within the questions/detailedQuestions context.
-                const jsonString = JSON.stringify(res.body);
-                // We search for the key "correctAnswer": 
-                // (Using a regex to be safe about whitespace/quotes)
-                expect(jsonString).not.toMatch(/"correctAnswer":/);
-            } else {
-                // If it's a 404 or 403 (Not evaluated etc.), the test passes the security requirement 
-                // as no data was leaked.
-                console.log(`Note: Endpoint returned status ${res.status}. Security preserved.`);
-            }
-        });
-    });
-
-    describe('GET /api/exams/job/:jobId', () => {
-        it('should block candidates who have not applied for the job', async () => {
-            const jobId = new mongoose.Types.ObjectId();
-            const res = await request(app)
-                .get(`/api/exams/job/${jobId}`)
-                .set('Authorization', `Bearer ${userToken}`);
-
-            expect(res.status).toBe(403);
-            expect(res.body.message).toContain("Access denied");
-        });
-    });
+  });
 });
