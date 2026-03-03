@@ -32,39 +32,71 @@ export const getAllJobs = ({ page = 1, limit = 10 }) => {
 
 /* ================= SEARCH & FILTER ================= */
 
-export const searchJobs = (filters, { page = 1, limit = 10 }) => {
+export const searchJobs = async (filters, { page = 1, limit = 10, sortBy = "createdAt", order = "desc" }) => {
   const query = { isActive: true, jobStatus: "Open" };
 
+  // Global Search
+  if (filters.search) {
+    query.$or = [
+      { jobTitle: { $regex: filters.search, $options: "i" } },
+      { companyName: { $regex: filters.search, $options: "i" } },
+      { jobDescription: { $regex: filters.search, $options: "i" } }
+    ];
+  }
+
+  // Specific Filters
   if (filters.jobTitle) {
     query.jobTitle = { $regex: filters.jobTitle, $options: "i" };
   }
 
   if (filters.location) {
-    query.location = filters.location;
+    query.location = { $regex: filters.location, $options: "i" };
+  }
+
+  if (filters.companyName) {
+    query.companyName = { $regex: filters.companyName, $options: "i" };
   }
 
   if (filters.jobType) {
     query.jobType = filters.jobType;
   }
 
-  if (filters.skills) {
+  if (filters.skills && filters.skills.length > 0) {
     query.requiredSkills = { $in: filters.skills };
   }
 
-  if (filters.minExperience) {
-    query["experience.min"] = { $lte: filters.minExperience };
+  // Experience Range
+  if (filters.minExperience !== undefined || filters.maxExperience !== undefined) {
+    query["experience.min"] = {};
+    if (filters.minExperience !== undefined) query["experience.min"].$gte = filters.minExperience;
+    if (filters.maxExperience !== undefined) query["experience.min"].$lte = filters.maxExperience;
   }
 
-  if (filters.maxSalary) {
-    query["salary.max"] = { $gte: filters.maxSalary };
+  // Salary Range
+  if (filters.minSalary !== undefined || filters.maxSalary !== undefined) {
+    query["salary.max"] = {};
+    if (filters.minSalary !== undefined) query["salary.max"].$gte = filters.minSalary;
+    if (filters.maxSalary !== undefined) query["salary.max"].$lte = filters.maxSalary;
   }
 
   const skip = (page - 1) * limit;
+  const sortOrder = order === "asc" ? 1 : -1;
 
-  return Job.find(query)
-    .sort({ createdAt: -1 })
-    .skip(skip)
-    .limit(limit);
+  const [jobs, total] = await Promise.all([
+    Job.find(query)
+      .sort({ [sortBy]: sortOrder })
+      .skip(skip)
+      .limit(limit),
+    Job.countDocuments(query)
+  ]);
+
+  return {
+    jobs,
+    total,
+    page,
+    limit,
+    totalPages: Math.ceil(total / limit)
+  };
 };
 
 /* ================= UPDATE ================= */

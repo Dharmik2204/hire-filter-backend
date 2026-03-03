@@ -6,9 +6,9 @@ import { formatError } from "../utils/errorHandler.js";
 
 import {
   findUserById,
-  updateUser,
   deleteUser,
   findAllUsersAndHrs,
+  updateUser, // Add this if not already there, but it seems to be in use
 } from "../repositories/user.repository.js";
 import { deleteApplicationsByUserId } from "../repositories/application.repository.js";
 import { deleteJobsByUserId } from "../repositories/job.repository.js";
@@ -35,6 +35,29 @@ export const getProfile = async (req, res) => {
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch profile"));
+  }
+};
+
+/* ================= GET USER UPLOADS ================= */
+export const getUserUploads = async (req, res) => {
+  try {
+    const user = await findUserById(req.user._id);
+
+    if (!user) {
+      return res.status(404).json(new ApiError(404, "User not found"));
+    }
+
+    const uploads = {
+      resume: user.profile?.resume || null,
+      profileImage: user.profile?.image || null,
+      coverImage: user.profile?.coverImage || null,
+    };
+
+    res.status(200).json(
+      new ApiResponse(200, uploads, "User uploads fetched successfully")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch user uploads"));
   }
 };
 

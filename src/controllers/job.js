@@ -236,11 +236,13 @@ export const getJobsController = async (req, res) => {
       return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
-    const { page, limit, ...filters } = value;
+    const { page, limit, sortBy, order, ...filters } = value;
 
-    const jobs = await searchJobs(filters, {
+    const { jobs, total, totalPages } = await searchJobs(filters, {
       page: Number(page),
       limit: Number(limit),
+      sortBy,
+      order,
     });
 
     if (jobs.length === 0) {
@@ -250,7 +252,15 @@ export const getJobsController = async (req, res) => {
     }
 
     res.json(
-      new ApiResponse(200, jobs, "Jobs fetched successfully")
+      new ApiResponse(200, {
+        jobs,
+        pagination: {
+          total,
+          page: Number(page),
+          limit: Number(limit),
+          totalPages,
+        }
+      }, "Jobs fetched successfully")
     );
   } catch (error) {
     console.error("Error: ", error);

@@ -10,6 +10,7 @@ import {
   uploadCoverImageController,
   getAllUsersAndHrs,
   adminDeleteUser,
+  getUserUploads,
 } from "../controllers/users.js";
 
 import {
@@ -28,6 +29,13 @@ router.get(
   authMiddleware,
   authorizeRoles("user", "hr", "admin"),
   getProfile
+);
+
+router.get(
+  "/my-uploads",
+  authMiddleware,
+  authorizeRoles("user", "hr", "admin"),
+  getUserUploads
 );
 
 router.put(

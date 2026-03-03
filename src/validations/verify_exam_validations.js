@@ -19,7 +19,7 @@ export const createExamSchema = Joi.object({
         "string.empty": "Title is required",
         "string.min": "Title must be at least 3 characters long",
         "string.max": "Title must be at most 100 characters long",
-    }),
+    }), // Note: Title uniqueness is enforced in the controller/database
     questionCount: Joi.number().integer().min(1).max(50).default(10).messages({
         "number.base": "Question count must be a number",
         "number.integer": "Question count must be an integer",
@@ -44,6 +44,18 @@ export const createExamSchema = Joi.object({
         "string.max": "Topic must be at most 100 characters long",
         "any.required": "Topic is required for generating or filtering questions",
     }),
+    totalMarks: Joi.number().integer().min(1).max(1000).required().messages({
+        "number.base": "Total marks must be a number",
+        "number.integer": "Total marks must be an integer",
+        "number.min": "Total marks must be at least 1",
+        "number.max": "Total marks cannot exceed 1000",
+        "any.required": "Total marks is required",
+    }),
+}).custom((value, helpers) => {
+    if (value.passingMarks > value.totalMarks) {
+        return helpers.message("Passing marks cannot be greater than total marks");
+    }
+    return value;
 });
 
 export const startExamSchema = Joi.object({
@@ -77,4 +89,42 @@ export const submitExamSchema = Joi.object({
             "array.min": "At least one answer is required",
             "any.required": "Answers are required",
         }),
+});
+
+export const addExamQuestionSchema = Joi.object({
+    question: Joi.string().trim().min(5).max(1000).required().messages({
+        "string.empty": "Question text is required",
+        "string.min": "Question must be at least 5 characters",
+        "string.max": "Question must be at most 1000 characters",
+        "any.required": "Question text is required",
+    }),
+    options: Joi.array()
+        .items(Joi.string().trim().min(1).required())
+        .min(2)
+        .max(6)
+        .required()
+        .messages({
+            "array.base": "Options must be an array",
+            "array.min": "At least 2 options are required",
+            "array.max": "Options cannot exceed 6 items",
+            "any.required": "Options are required",
+        }),
+    correctAnswer: Joi.string().trim().required().messages({
+        "string.empty": "Correct answer is required",
+        "any.required": "Correct answer is required",
+    }),
+    marks: Joi.number().integer().min(1).max(100).default(1).messages({
+        "number.base": "Marks must be a number",
+        "number.integer": "Marks must be an integer",
+        "number.min": "Marks must be at least 1",
+        "number.max": "Marks cannot exceed 100",
+    }),
+}).custom((value, helpers) => {
+    const normalizedOptions = (value.options || []).map((o) => o.trim());
+    if (!normalizedOptions.includes((value.correctAnswer || "").trim())) {
+        return helpers.error("any.invalid");
+    }
+    return value;
+}, "Correct answer validation").messages({
+    "any.invalid": "Correct answer must match one of the provided options",
 });

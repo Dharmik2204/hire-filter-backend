@@ -28,6 +28,8 @@ import {
 } from "../validations/application.validation.js";
 import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
 import { findApplicationWithDetails } from "../repositories/application.repository.js";
+import { createNotification } from "../repositories/notification.repository.js";
+import { getIO } from "../socket/socket.js";
 
 /* ================= APPLY JOB & Create Application================= */
 
@@ -239,24 +241,33 @@ export const updateApplicationStatusController = async (req, res) => {
     }
 
     const { status } = value;
+    const existingApplication = await findApplicationWithDetails(applicationId);
+
+    if (!existingApplication) {
+      return res.status(404).json(new ApiError(404, "Application not found", ["Application not found"]));
+    }
+
+    const wasAlreadyHired = existingApplication.status === "hired";
 
     const updatedApplication = await updateApplicationStatus(
       applicationId,
-      status);
+      status
+    );
 
     if (!updatedApplication) {
       return res.status(404).json(new ApiError(404, "Application not found", ["Application not found"]));
     }
 
     /* 🔥 NOTIFICATION ON HIRED */
-    if (status === "hired") {
+    if (status === "hired" && !wasAlreadyHired) {
       try {
-        const candidateId = updatedApplication.user;
+        const candidateId = existingApplication.user?._id || updatedApplication.user;
         const hrId = req.user._id;
 
         const conversation = await getOrCreateConversation(hrId, candidateId);
 
-        const notification = await createMessage({
+        // 1. Create message for chat history
+        const message = await createMessage({
           conversationId: conversation._id,
           sender: hrId,
           receiver: candidateId,
@@ -264,7 +275,32 @@ export const updateApplicationStatusController = async (req, res) => {
           type: "notification"
         });
 
-        await updateConversationLastMessage(conversation._id, notification._id);
+        await updateConversationLastMessage(conversation._id, message._id);
+
+        // 2. Create Persistent Notification
+        const notificationData = {
+          recipient: candidateId,
+          sender: hrId,
+          title: "Hired!",
+          message: `Congratulations! You have been hired for a position.`,
+          type: "application_status",
+          link: `/applications/${applicationId}`,
+          metadata: {
+            applicationId: applicationId.toString(),
+            status: "hired"
+          }
+        };
+
+        const notification = await createNotification(notificationData);
+
+        // 3. Emit real-time notification
+        const io = getIO();
+        io.to(candidateId.toString()).emit("notification", {
+          ...notification.toObject(),
+          // Metadata for frontend compatibility if needed
+          conversationId: conversation._id,
+          unreadCount: 1 // Simplified for now
+        });
 
       } catch (notifError) {
         console.error("Failed to send hiring notification:", notifError);

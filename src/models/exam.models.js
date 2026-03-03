@@ -21,6 +21,7 @@ const examSchema = new mongoose.Schema(
         title: {
             type: String,
             required: true,
+            unique: true,
         },
 
         questionCount: {
@@ -53,18 +54,24 @@ const examSchema = new mongoose.Schema(
             type: String,
             trim: true,
         },
+        totalMarks: {
+            type: Number,
+            required: true,
+            min: 1,
+            default: 10
+        },
+        status: {
+            type: String,
+            enum: ["draft", "published"],
+            default: "draft"
+        }
     },
     { timestamps: true }
 );
 
-export const Exam = mongoose.model("Exam", examSchema);
+examSchema.index({ job: 1, status: 1, isActive: 1, createdAt: -1 });
 
-// 🛠️ Database Migration Helper: Drop the old unique index 'job_1' if it exists.
-// This allows HR to create multiple exams for the same job.
-// You can remove this block after it runs once on your production database.
-Exam.collection.dropIndex("job_1").catch(() => {
-    // console.log("Index 'job_1' already dropped or doesn't exist.");
-});
+export const Exam = mongoose.model("Exam", examSchema);
 
 /* =======================
    QUESTION BANK
@@ -110,6 +117,9 @@ const questionBankSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+questionBankSchema.index({ exam: 1, createdAt: -1 });
+questionBankSchema.index({ exam: 1, category: 1 });
 
 export const QuestionBank = mongoose.model(
     "QuestionBank",
@@ -184,8 +194,27 @@ const examAttemptSchema = new mongoose.Schema(
 
         status: {
             type: String,
-            enum: ["started", "submitted", "evaluated"],
+            enum: ["started", "queued", "evaluating", "evaluated", "failed"],
             default: "started",
+        },
+
+        evaluatedAt: {
+            type: Date,
+        },
+
+        evaluationError: {
+            type: String,
+            default: "",
+        },
+
+        retryCount: {
+            type: Number,
+            default: 0,
+        },
+
+        evaluationVersion: {
+            type: Number,
+            default: 1,
         },
 
         feedback: {
@@ -200,6 +229,7 @@ examAttemptSchema.index(
     { exam: 1, user: 1 },
     { unique: true }
 );
+examAttemptSchema.index({ status: 1, updatedAt: 1 });
 
 export const ExamAttempt = mongoose.model(
     "ExamAttempt",

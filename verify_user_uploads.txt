@@ -1,0 +1,18 @@
+// Manual Verification for User Upload Visibility
+
+/*
+1. Login as a user.
+2. Ensure you have uploaded a resume and profile image.
+3. Call GET /api/users/my-uploads.
+4. Verify the response contains:
+   {
+     "success": true,
+     "data": {
+       "resume": { "url": "...", "public_id": "..." },
+       "profileImage": { "url": "...", "public_id": "..." },
+       "coverImage": null // or data if HR
+     },
+     "message": "User uploads fetched successfully"
+   }
+*/
+console.log("Verify via GET /api/users/my-uploads");

@@ -16,6 +16,8 @@ import {
 
 } from "../repositories/message.repository.js";
 import { searchUsersForMessaging } from "../repositories/user.repository.js";
+import { createNotification } from "../repositories/notification.repository.js";
+
 
 /* ======================
    SEND MESSAGE
@@ -82,11 +84,29 @@ export const sendMessage = async (req, res) => {
             lastMessage: messageForReceiver,
             unreadCount: unreadCount
         });
+
         io.to(senderId.toString()).emit("update_inbox", {
             conversationId: conversation._id,
             lastMessage: messageForSender,
             unreadCount: 0 // Sender has no unread messages in this chat
         });
+
+        // 6. Create Persistent Notification for receiver (Wrapped in try-catch to avoid failing message sent)
+        try {
+            await createNotification({
+                recipient: receiverId,
+                sender: senderId,
+                title: `New message from ${req.user.name}`,
+                message: content.length > 50 ? content.substring(0, 47) + "..." : content,
+                type: "message",
+                link: `/chat/${conversation._id}`,
+                metadata: {
+                    conversationId: conversation._id.toString(),
+                }
+            });
+        } catch (notifError) {
+            console.error("Secondary Notification failed:", notifError);
+        }
 
         // Finally, map it for the standard HTTP response
         const responseMessage = {

@@ -17,6 +17,10 @@ export const findExamById = (examId) => {
     return Exam.findById(examId);
 };
 
+export const findExamByTitle = (title) => {
+    return Exam.findOne({ title });
+};
+
 export const deactivateExam = (examId) => {
     return Exam.findByIdAndUpdate(
         examId,
@@ -70,6 +74,26 @@ export const getQuestionsWithAnswers = (questionIds) => {
     return QuestionBank.find({ _id: { $in: questionIds } });
 };
 
+export const addQuestionToExam = ({ examId, category, question, options, correctAnswer, difficulty, marks }) => {
+    return QuestionBank.create({
+        exam: examId,
+        category,
+        question,
+        options,
+        correctAnswer,
+        difficulty,
+        marks: marks || 1,
+    });
+};
+
+export const getQuestionsByExamId = (examId) => {
+    return QuestionBank.find({ exam: examId }).sort({ createdAt: -1 });
+};
+
+export const deleteQuestionById = (questionId) => {
+    return QuestionBank.findByIdAndDelete(questionId);
+};
+
 /* ===========================
    EXAM ATTEMPT
 =========================== */
@@ -99,6 +123,10 @@ export const findAttemptByExamAndApplication = (examId, applicationId) => {
     return ExamAttempt.findOne({ exam: examId, application: applicationId });
 };
 
+export const findAttemptByExamAndUser = (examId, userId) => {
+    return ExamAttempt.findOne({ exam: examId, user: userId });
+};
+
 export const findAttemptById = (attemptId) => {
     return ExamAttempt.findById(attemptId).populate("user", "name email");
 };
@@ -108,7 +136,7 @@ export const saveExamAnswers = (attemptId, answers) => {
         attemptId,
         {
             answers,
-            status: "submitted",
+            status: "queued",
         },
         { new: true }
     );
@@ -121,6 +149,19 @@ export const updateExamScore = (attemptId, score, result) => {
     return ExamAttempt.findByIdAndUpdate(
         attemptId,
         {
+            score,
+            result,
+            status: "evaluated",
+        },
+        { new: true }
+    );
+};
+
+export const finalizeExamAttempt = (attemptId, { answers, score, result }) => {
+    return ExamAttempt.findOneAndUpdate(
+        { _id: attemptId, status: "started" },
+        {
+            answers,
             score,
             result,
             status: "evaluated",

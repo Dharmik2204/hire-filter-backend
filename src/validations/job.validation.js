@@ -101,11 +101,17 @@ export const createJobSchema = Joi.object({
 export const getJobsSchema = Joi.object({
     page: Joi.number().integer().min(1).default(1),
     limit: Joi.number().integer().min(1).max(100).default(10),
+    search: Joi.string().trim().allow(""),
     jobTitle: Joi.string().trim().allow(""),
     location: Joi.string().trim().allow(""),
     jobType: Joi.string().trim().allow(""),
-    "experience.min": Joi.number().min(0),
-    "salary.min": Joi.number().min(0),
+    companyName: Joi.string().trim().allow(""),
+    minExperience: Joi.number().min(0),
+    maxExperience: Joi.number().min(0),
+    minSalary: Joi.number().min(0),
+    maxSalary: Joi.number().min(0),
+    sortBy: Joi.string().valid("createdAt", "jobTitle", "salary.max", "experience.min").default("createdAt"),
+    order: Joi.string().valid("asc", "desc").default("desc"),
 }).unknown(true);
 
 export const updateJobSchema = createJobSchema.fork(
