@@ -11,6 +11,7 @@ import {
     updateConversationLastMessage,
     getPreviousConversationUsers,
     getPaginatedMessages,
+    countMessagesByConversation,
     markConversationAsRead,
     countUnreadForConversation,
 
@@ -127,14 +128,19 @@ export const getConversation = async (req, res) => {
     try {
         const { userId } = req.params;
         const myId = req.user._id;
-        const page = parseInt(req.query.page) || 1;
-        const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+        const page = Math.max(parseInt(req.query.page, 10) || 1, 1);
+        const limit = Math.min(Math.max(parseInt(req.query.limit, 10) || 50, 1), 100);
 
         // Find the conversation ID
         const conversation = await getOrCreateConversation(myId, userId);
 
         // Fetch paginated messages
-        const messages = await getPaginatedMessages(conversation._id, page, limit);
+        const [messages, totalMessages] = await Promise.all([
+            getPaginatedMessages(conversation._id, page, limit),
+            countMessagesByConversation(conversation._id),
+        ]);
+        const totalPages = totalMessages > 0 ? Math.ceil(totalMessages / limit) : 0;
+        const hasNextPage = page < totalPages;
 
         // NEW LOGIC: Add the `isOutbound` flag to every message
         const formattedMessages = messages.map((msg) => {
@@ -150,6 +156,9 @@ export const getConversation = async (req, res) => {
         res.status(200).json(new ApiResponse(200, {
             conversationId: conversation._id,
             page,
+            limit,
+            totalPages,
+            hasNextPage,
             messages: formattedMessages
         }, "Conversation fetched"));
     } catch (error) {

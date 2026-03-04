@@ -117,11 +117,18 @@ export const updateConversationLastMessage = async (conversationId, messageId) =
 export const getPaginatedMessages = async (conversationId, page = 1, limit = 50) => {
     const skip = (page - 1) * limit;
 
-    // Sort by -1 to get newest first, then reverse on frontend or here
-    return Message.find({ conversationId })
-        .sort({ createdAt: 1 })
+    // Fetch newest first so page 1 always contains latest messages.
+    // Reverse before returning to preserve old->new order for frontend rendering.
+    const messages = await Message.find({ conversationId })
+        .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
         .limit(limit);
+
+    return messages.reverse();
+};
+
+export const countMessagesByConversation = async (conversationId) => {
+    return Message.countDocuments({ conversationId });
 };
 
 // 5. Mark conversation as read
