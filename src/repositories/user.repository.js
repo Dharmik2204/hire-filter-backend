@@ -36,6 +36,22 @@ export const findAllUsersAndHrs = () => {
   return User.find({ role: { $in: ["user", "hr"] } }).select("-password");
 };
 
+export const findUsersByRoles = (roles = [], { excludeUserIds = [], isActiveOnly = true } = {}) => {
+  const query = {
+    role: { $in: roles },
+  };
+
+  if (isActiveOnly) {
+    query.isActive = true;
+  }
+
+  if (excludeUserIds.length > 0) {
+    query._id = { $nin: excludeUserIds };
+  }
+
+  return User.find(query).select("_id name role");
+};
+
 /* ================= TOKEN ================= */
 
 export const findUserByIdAndToken = (id, token) => {

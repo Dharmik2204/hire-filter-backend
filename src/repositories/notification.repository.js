@@ -1,7 +1,16 @@
+import mongoose from "mongoose";
 import { Notification } from "../models/notification.models.js";
 
 export const createNotification = async (data) => {
     return await Notification.create(data);
+};
+
+export const createNotificationsBulk = async (notificationData = []) => {
+    if (!Array.isArray(notificationData) || notificationData.length === 0) {
+        return [];
+    }
+
+    return Notification.insertMany(notificationData, { ordered: false });
 };
 
 export const getNotificationsByUserId = async (userId, page = 1, limit = 20) => {
@@ -33,4 +42,38 @@ export const deleteNotification = async (notificationId, userId) => {
 
 export const getUnreadCount = async (userId) => {
     return await Notification.countDocuments({ recipient: userId, isRead: false });
+};
+
+export const getUnreadCountsByRecipients = async (recipientIds = []) => {
+    const uniqueRecipientIds = Array.from(
+        new Set((recipientIds || []).map((id) => id?.toString?.()).filter(Boolean))
+    );
+
+    if (uniqueRecipientIds.length === 0) {
+        return {};
+    }
+
+    const recipientObjectIds = uniqueRecipientIds.map(
+        (recipientId) => new mongoose.Types.ObjectId(recipientId)
+    );
+
+    const unreadCounts = await Notification.aggregate([
+        {
+            $match: {
+                recipient: { $in: recipientObjectIds },
+                isRead: false,
+            },
+        },
+        {
+            $group: {
+                _id: "$recipient",
+                totalUnreadCount: { $sum: 1 },
+            },
+        },
+    ]);
+
+    return unreadCounts.reduce((acc, entry) => {
+        acc[entry._id.toString()] = entry.totalUnreadCount;
+        return acc;
+    }, {});
 };

@@ -174,7 +174,7 @@ export const countHrApplicationsByStatus = async (hrId, status) => {
 export const findApplicationWithDetails = (id) => {
     return Application.findById(id)
         .populate("user", "name email phone profile")
-        .populate("job", "jobTitle companyName");
+        .populate("job", "jobTitle companyName createdBy");
 };
 
 

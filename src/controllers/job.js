@@ -21,21 +21,32 @@ import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { formatError } from "../utils/errorHandler.js";
 import { createJobSchema, updateJobSchema, getJobsSchema } from "../validations/job.validation.js";
+import { normalizeSkillsInput } from "../utils/skills-normalizer.js";
 
 /* ================= CREATE JOB ================= */
 
 export const createJobController = async (req, res) => {
   try {
 
-    const { error, value } = createJobSchema.validate(req.body, { abortEarly: false });
+    const createPayload = { ...req.body };
+    if (Object.prototype.hasOwnProperty.call(createPayload, "requiredSkills")) {
+      createPayload.requiredSkills = normalizeSkillsInput(createPayload.requiredSkills);
+    }
+
+    const { error, value } = createJobSchema.validate(createPayload, { abortEarly: false });
 
     if (error) {
       const errorMessages = error.details.map((detail) => detail.message);
       return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
     }
 
+    const normalizedRequiredSkills = normalizeSkillsInput(value.requiredSkills);
+    if (normalizedRequiredSkills.length === 0) {
+      return res.status(400).json(new ApiError(400, "At least one valid required skill is needed"));
+    }
+
     const { role, company } = req.user;
-    let jobData = { ...value, createdBy: req.user._id };
+    let jobData = { ...value, requiredSkills: normalizedRequiredSkills, createdBy: req.user._id };
 
     if (role === "hr") {
       const dbCompanyName = typeof company === "string" ? company : company?.name;
@@ -72,7 +83,12 @@ export const updateJobController = async (req, res) => {
     }
 
 
-    const { error, value } = updateJobSchema.validate(req.body, { abortEarly: false });
+    const updatePayload = { ...req.body };
+    if (Object.prototype.hasOwnProperty.call(updatePayload, "requiredSkills")) {
+      updatePayload.requiredSkills = normalizeSkillsInput(updatePayload.requiredSkills);
+    }
+
+    const { error, value } = updateJobSchema.validate(updatePayload, { abortEarly: false });
 
     if (error) {
       const errorMessages = error.details.map((detail) => detail.message);
@@ -96,7 +112,16 @@ export const updateJobController = async (req, res) => {
       return res.status(403).json(new ApiError(403, "Unauthorized"));
     }
 
-    const updatedJob = await updateJobById(req.params.id, value);
+    const sanitizedValue = { ...value };
+
+    if (Object.prototype.hasOwnProperty.call(sanitizedValue, "requiredSkills")) {
+      sanitizedValue.requiredSkills = normalizeSkillsInput(sanitizedValue.requiredSkills);
+      if (sanitizedValue.requiredSkills.length === 0) {
+        return res.status(400).json(new ApiError(400, "At least one valid required skill is needed"));
+      }
+    }
+
+    const updatedJob = await updateJobById(req.params.id, sanitizedValue);
 
     res.json(
       new ApiResponse(200, updatedJob, "Job updated successfully")

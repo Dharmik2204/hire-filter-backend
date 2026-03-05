@@ -161,6 +161,30 @@ export const getPreviousConversationUsers = async (userId, { limit = 25, cursor,
 
     let hasNextPage = conversations.length > normalizedLimit;
     const pageConversations = hasNextPage ? conversations.slice(0, normalizedLimit) : conversations;
+    const pageConversationIds = pageConversations.map((conversation) => conversation._id);
+
+    const unreadCounts = pageConversationIds.length
+        ? await Message.aggregate([
+            {
+                $match: {
+                    conversationId: { $in: pageConversationIds },
+                    receiver: userId,
+                    isRead: false,
+                },
+            },
+            {
+                $group: {
+                    _id: "$conversationId",
+                    unreadCount: { $sum: 1 },
+                },
+            },
+        ])
+        : [];
+
+    const unreadCountByConversationId = unreadCounts.reduce((acc, entry) => {
+        acc[entry._id.toString()] = entry.unreadCount;
+        return acc;
+    }, {});
 
     const searchText = (search || "").trim().toLowerCase();
     const items = [];
@@ -182,11 +206,7 @@ export const getPreviousConversationUsers = async (userId, { limit = 25, cursor,
             }
         }
 
-        const unreadCount = await Message.countDocuments({
-            conversationId: conv._id,
-            receiver: userId,
-            isRead: false,
-        });
+        const unreadCount = unreadCountByConversationId[conv._id.toString()] || 0;
 
         items.push({
             conversationId: conv._id,

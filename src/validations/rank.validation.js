@@ -2,10 +2,10 @@ import Joi from "joi";
 
 export const updateRankStatusSchema = Joi.object({
     status: Joi.string()
-        .valid("shortlisted", "rejected", "hired")
+        .valid("applied", "screening", "interviewing", "shortlisted", "offer", "rejected", "hired", "archived")
         .required()
         .messages({
-            "any.only": "Status must be one of: shortlisted, rejected, hired",
+            "any.only": "Status must be one of: applied, screening, interviewing, shortlisted, offer, rejected, hired, archived",
             "any.required": "Status is required",
         }),
 });

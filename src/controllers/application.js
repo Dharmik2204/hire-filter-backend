@@ -14,11 +14,6 @@ import {
   findUserById,
   incrementProfileVisits
 } from "../repositories/user.repository.js";
-import {
-  getOrCreateConversation,
-  createMessage,
-  updateConversationLastMessage
-} from "../repositories/message.repository.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { formatError } from "../utils/errorHandler.js";
@@ -28,8 +23,8 @@ import {
 } from "../validations/application.validation.js";
 import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
 import { findApplicationWithDetails } from "../repositories/application.repository.js";
-import { createNotification } from "../repositories/notification.repository.js";
-import { getIO } from "../socket/socket.js";
+import { normalizeSkillsInput, normalizeSkillCompareKey } from "../utils/skills-normalizer.js";
+import { notifyApplicationStatusChange } from "../services/application-status-notification.service.js";
 
 /* ================= APPLY JOB & Create Application================= */
 
@@ -63,7 +58,7 @@ export const applyJobController = async (req, res) => {
     const applicationData = {
       jobId,
       candidateId: userId.toString(),
-      skills: req.body.skills || user.profile?.skills || [],
+      skills: normalizeSkillsInput(req.body.skills || user.profile?.skills || []),
       experience: req.body.experience !== undefined ? req.body.experience : (user.profile?.experience || 0),
       education: req.body.education || user.profile?.education || [],
       phone: req.body.phone || user.phone || "",
@@ -97,6 +92,8 @@ export const applyJobController = async (req, res) => {
       desiredSalary: applicationSalary
     } = value;
 
+    const normalizedApplicationSkills = normalizeSkillsInput(applicationSkills);
+
     /* ================= SCORING LOGIC ================= */
     let skillsScore = 0;
     const matchedSkills = [];
@@ -104,11 +101,14 @@ export const applyJobController = async (req, res) => {
 
     // 1. Skills Scoring (50% Weight)
     if (job.requiredSkills && job.requiredSkills.length > 0) {
-      const jobSkills = job.requiredSkills.map(s => s.toLowerCase());
-      const userSkills = applicationSkills.map(s => s.toLowerCase());
+      const jobSkills = normalizeSkillsInput(job.requiredSkills);
+      const userSkillKeys = new Set(
+        normalizedApplicationSkills.map((skill) => normalizeSkillCompareKey(skill))
+      );
 
       jobSkills.forEach(skill => {
-        if (userSkills.includes(skill)) {
+        const compareKey = normalizeSkillCompareKey(skill);
+        if (compareKey && userSkillKeys.has(compareKey)) {
           matchedSkills.push(skill);
         } else {
           missingSkills.push(skill);
@@ -140,7 +140,7 @@ export const applyJobController = async (req, res) => {
     const application = await createApplication({
       jobId,
       userId,
-      skills: applicationSkills,
+      skills: normalizedApplicationSkills,
       matchedSkills,
       missingSkills,
       experience: applicationExperience,
@@ -160,7 +160,7 @@ export const applyJobController = async (req, res) => {
       desiredSalary: applicationSalary
     });
 
-    // 🎯 Trigger Re-ranking immediately so the candidate appears in lists
+    // Trigger re-ranking immediately so the candidate appears in lists.
     try {
       const { recalculateRanks } = await import("../utils/rank.utils.js");
       await recalculateRanks(jobId);
@@ -247,7 +247,7 @@ export const updateApplicationStatusController = async (req, res) => {
       return res.status(404).json(new ApiError(404, "Application not found", ["Application not found"]));
     }
 
-    const wasAlreadyHired = existingApplication.status === "hired";
+    const previousStatus = existingApplication.status;
 
     const updatedApplication = await updateApplicationStatus(
       applicationId,
@@ -258,56 +258,18 @@ export const updateApplicationStatusController = async (req, res) => {
       return res.status(404).json(new ApiError(404, "Application not found", ["Application not found"]));
     }
 
-    /* 🔥 NOTIFICATION ON HIRED */
-    if (status === "hired" && !wasAlreadyHired) {
-      try {
-        const candidateId = existingApplication.user?._id || updatedApplication.user;
-        const hrId = req.user._id;
-
-        const conversation = await getOrCreateConversation(hrId, candidateId);
-
-        // 1. Create message for chat history
-        const message = await createMessage({
-          conversationId: conversation._id,
-          sender: hrId,
-          receiver: candidateId,
-          content: `Congratulations! You have been hired for the position. Our team will contact you soon.`,
-          type: "notification"
-        });
-
-        await updateConversationLastMessage(conversation._id, message._id);
-
-        // 2. Create Persistent Notification
-        const notificationData = {
-          recipient: candidateId,
-          sender: hrId,
-          title: "Hired!",
-          message: `Congratulations! You have been hired for a position.`,
-          type: "application_status",
-          link: `/applications/${applicationId}`,
-          metadata: {
-            applicationId: applicationId.toString(),
-            status: "hired"
-          }
-        };
-
-        const notification = await createNotification(notificationData);
-
-        // 3. Emit real-time notification
-        const io = getIO();
-        io.to(candidateId.toString()).emit("notification", {
-          ...notification.toObject(),
-          // Metadata for frontend compatibility if needed
-          conversationId: conversation._id,
-          unreadCount: 1 // Simplified for now
-        });
-
-      } catch (notifError) {
-        console.error("Failed to send hiring notification:", notifError);
-        // We don't fail the whole request because notification failed
-      }
+    try {
+      await notifyApplicationStatusChange({
+        applicationId: applicationId.toString(),
+        previousStatus,
+        nextStatus: status,
+        applicationDetails: existingApplication,
+        actorUser: req.user,
+      });
+    } catch (notifError) {
+      console.error("Failed to send application status notification:", notifError);
+      // We don't fail the whole request because notification failed
     }
-
     res.status(200).json(
       new ApiResponse(200, updatedApplication, "Application status updated")
     );

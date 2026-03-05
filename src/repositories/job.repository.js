@@ -1,4 +1,5 @@
 import { Job } from "../models/job.models.js";
+import { normalizeSkillsInput } from "../utils/skills-normalizer.js";
 
 /* ================= CREATE ================= */
 
@@ -61,8 +62,9 @@ export const searchJobs = async (filters, { page = 1, limit = 10, sortBy = "crea
     query.jobType = filters.jobType;
   }
 
-  if (filters.skills && filters.skills.length > 0) {
-    query.requiredSkills = { $in: filters.skills };
+  const normalizedFilterSkills = normalizeSkillsInput(filters.skills);
+  if (normalizedFilterSkills.length > 0) {
+    query.requiredSkills = { $in: normalizedFilterSkills };
   }
 
   // Experience Range

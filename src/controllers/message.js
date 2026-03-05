@@ -17,7 +17,8 @@ import {
 
 } from "../repositories/message.repository.js";
 import { searchUsersForMessaging } from "../repositories/user.repository.js";
-import { createNotification } from "../repositories/notification.repository.js";
+import { NOTIFICATION_TYPES } from "../constants/notification.constants.js";
+import { createAndDispatchNotification } from "../services/notification-dispatcher.service.js";
 
 
 /* ======================
@@ -68,18 +69,7 @@ export const sendMessage = async (req, res) => {
         // Also emit to sender (using outbound format)
         io.to(senderId.toString()).emit("new_message", messageForSender);
 
-        // 4. Send Notification to receiver
-        io.to(receiverId.toString()).emit("notification", {
-            type: "message",
-            senderName: req.user.name,
-            senderImage: req.user.profile?.image?.url || null,
-            content: content,
-            conversationId: conversation._id,
-            unreadCount: unreadCount,
-            createdAt: message.createdAt
-        });
-
-        // 5. Tell both users to refresh their Inbox list
+        // 4. Tell both users to refresh their Inbox list
         io.to(receiverId.toString()).emit("update_inbox", {
             conversationId: conversation._id,
             lastMessage: messageForReceiver,
@@ -92,18 +82,26 @@ export const sendMessage = async (req, res) => {
             unreadCount: 0 // Sender has no unread messages in this chat
         });
 
-        // 6. Create Persistent Notification for receiver (Wrapped in try-catch to avoid failing message sent)
+        // 5. Create + dispatch notification via shared dispatcher (don't fail message if this step fails)
         try {
-            await createNotification({
+            await createAndDispatchNotification({
                 recipient: receiverId,
                 sender: senderId,
                 title: `New message from ${req.user.name}`,
                 message: content.length > 50 ? content.substring(0, 47) + "..." : content,
-                type: "message",
+                type: NOTIFICATION_TYPES.MESSAGE,
                 link: `/chat/${conversation._id}`,
                 metadata: {
                     conversationId: conversation._id.toString(),
-                }
+                },
+                extraSocketPayload: {
+                    senderName: req.user.name,
+                    senderImage: req.user.profile?.image?.url || null,
+                    content,
+                    conversationId: conversation._id,
+                    unreadCount,
+                    createdAt: message.createdAt,
+                },
             });
         } catch (notifError) {
             console.error("Secondary Notification failed:", notifError);
