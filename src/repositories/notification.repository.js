@@ -1,6 +1,18 @@
 import mongoose from "mongoose";
 import { Notification } from "../models/notification.models.js";
 
+const buildNotificationFilter = (userId, status = "unread") => {
+    const filter = { recipient: userId };
+
+    if (status === "unread") {
+        filter.isRead = false;
+    } else if (status === "read") {
+        filter.isRead = true;
+    }
+
+    return filter;
+};
+
 export const createNotification = async (data) => {
     return await Notification.create(data);
 };
@@ -13,12 +25,18 @@ export const createNotificationsBulk = async (notificationData = []) => {
     return Notification.insertMany(notificationData, { ordered: false });
 };
 
-export const getNotificationsByUserId = async (userId, page = 1, limit = 20) => {
+export const getNotificationsByUserId = async (userId, page = 1, limit = 50, status = "unread") => {
     const skip = (page - 1) * limit;
-    return await Notification.find({ recipient: userId })
+    const query = buildNotificationFilter(userId, status);
+
+    return await Notification.find(query)
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit);
+};
+
+export const countNotificationsByUserId = async (userId, status = "unread") => {
+    return await Notification.countDocuments(buildNotificationFilter(userId, status));
 };
 
 export const markNotificationAsRead = async (notificationId, userId) => {

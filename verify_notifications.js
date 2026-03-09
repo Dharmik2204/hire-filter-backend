@@ -18,18 +18,22 @@ const testNotifications = async () => {
     Steps to verify:
     1. Login as a candidate and an HR.
     2. HR sends a message to candidate.
-    3. Check /api/notifications for candidate -> should have a "message" type notification.
-    4. HR updates candidate application status to "hired".
-    5. Check /api/notifications for candidate -> should have an "application_status" type notification.
-    6. Candidate marks a notification as read via PATCH /api/notifications/:id/read.
-    7. Check /api/notifications -> isRead should be true.
+    3. Check /api/notifications for candidate -> should have unread notifications only.
+    4. Check /api/notifications?status=all -> should include both read and unread notifications.
+    5. HR updates candidate application status to "hired".
+    6. Check /api/notifications for candidate -> should have an "application_status" type unread notification.
+    7. Candidate marks a notification as read via PATCH /api/notifications/:id/read.
+    8. Check /api/notifications -> that notification should no longer appear (default unread filter).
+    9. Check /api/notifications?status=read -> should include the notification with isRead=true.
     */
 
     console.log("\nManual Verification Steps:");
     console.log("1. Send a message: POST /api/messages");
-    console.log("2. Check notifications: GET /api/notifications");
-    console.log("3. Update status: PATCH /api/application/status/:id (set to 'hired')");
-    console.log("4. Check notifications again: GET /api/notifications");
+    console.log("2. Check unread notifications: GET /api/notifications");
+    console.log("3. Check all notifications: GET /api/notifications?status=all");
+    console.log("4. Update status: PATCH /api/application/status/:id (set to 'hired')");
+    console.log("5. Mark one as read: PATCH /api/notifications/:id/read");
+    console.log("6. Check read notifications: GET /api/notifications?status=read");
 };
 
 testNotifications();
