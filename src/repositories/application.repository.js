@@ -177,4 +177,39 @@ export const findApplicationWithDetails = (id) => {
         .populate("job", "jobTitle companyName createdBy");
 };
 
+export const getApplicationsByStatus = async (role, userId, status, jobId) => {
+    const query = { status };
+
+    if (jobId) {
+        query.job = jobId;
+    }
+
+    if (role === "user") {
+        query.user = userId;
+    } else if (role === "hr") {
+        const { Job } = await import("../models/job.models.js");
+
+        if (jobId) {
+            // If jobId is provided, ensure HR owns this specific job
+            const job = await Job.findOne({ _id: jobId, createdBy: userId });
+            if (!job) {
+                // If HR doesn't own this job, return empty or throw error?
+                // Returning empty array is safer for now, or we can handle in controller
+                return [];
+            }
+        } else {
+            // If no jobId provided, get all applications for all jobs created by this HR
+            const hrJobs = await Job.find({ createdBy: userId }).select("_id");
+            const jobIds = hrJobs.map((j) => j._id);
+            query.job = { $in: jobIds };
+        }
+    }
+    // Admin can see all or narrow by jobId if provided
+
+    return Application.find(query)
+        .populate("user", "name email phone profile")
+        .populate("job", "jobTitle companyName location")
+        .sort({ createdAt: -1 });
+};
+
 

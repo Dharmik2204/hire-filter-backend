@@ -5,6 +5,7 @@ import {
   findByJobAndCandidate,
   updateApplicationStatus,
   deleteApplicationById,
+  getApplicationsByStatus
 } from "../repositories/application.repository.js";
 import mongoose from "mongoose";
 
@@ -327,5 +328,59 @@ export const deleteApplicationController = async (req, res) => {
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to delete application"));
+  }
+};
+
+/* ================ get Applications By Status (User/Hr/Admin) =============== */
+export const getApplicationsByStatusController = async (req, res) => {
+  try {
+    const { status } = req.params;
+    const { jobId } = req.query;
+
+    const validStatuses = [
+      "applied",
+      "screening",
+      "interviewing",
+      "shortlisted",
+      "offer",
+      "rejected",
+      "hired",
+      "archived"
+    ];
+
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json(new ApiError(400, "Invalid status"));
+    }
+
+    if (jobId && !mongoose.Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Job ID"));
+    }
+
+    // Validation: If HR, check if the job belongs to them
+    if (req.user.role === "hr" && jobId) {
+      const job = await getJobById(jobId);
+      if (!job || job.createdBy.toString() !== req.user._id.toString()) {
+        return res.status(403).json(new ApiError(403, "you don't have this job"));
+      }
+    }
+
+    const applications = await getApplicationsByStatus(
+      req.user.role,
+      req.user._id,
+      status,
+      jobId
+    );
+
+    if (!applications || applications.length === 0) {
+      return res.status(200).json(
+        new ApiResponse(200, [], "thier are no application with that status")
+      );
+    }
+
+    res.status(200).json(
+      new ApiResponse(200, applications, `Applications with status '${status}' fetched successfully`)
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch applications by status"));
   }
 };
