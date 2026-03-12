@@ -71,7 +71,6 @@ const applicationSchema = new mongoose.Schema(
       default: 0, // 0 means unranked
     },
 
-    resume: String,
 
     coverLetter: {
       type: String,

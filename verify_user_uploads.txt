@@ -8,8 +8,15 @@
    {
      "success": true,
      "data": {
-       "resume": { "url": "...", "public_id": "..." },
-       "profileImage": { "url": "...", "public_id": "..." },
+       "resume": {
+         "url": "...",
+         "downloadUrl": "...",
+         "public_id": "...",
+         "resource_type": "...",
+         "type": "..."
+       },
+       "resumeDownload": "...", // optional legacy alias
+       "profileImage": "...",
        "coverImage": null // or data if HR
      },
      "message": "User uploads fetched successfully"

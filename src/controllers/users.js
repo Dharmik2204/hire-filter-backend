@@ -18,6 +18,13 @@ import { deleteJobsByUserId } from "../repositories/job.repository.js";
 import { updateProfileSchema } from "../validations/user.validation.js";
 import { formatUserResponse } from "../utils/userFormatter.js";
 import path from "path";
+import { 
+  buildResumeResponse, 
+  resolveCloudinaryAssetInfo, 
+  uploadOnCloudinary, 
+  deleteFromCloudinary,
+  getSignedUrl 
+} from "../config/cloudinary.js";
 
 /* ================= GET PROFILE ================= */
 export const getProfile = async (req, res) => {
@@ -29,6 +36,19 @@ export const getProfile = async (req, res) => {
     }
 
     const formattedUser = formatUserResponse(user);
+
+    // Sign all profile assets if they exist
+    if (formattedUser.profile) {
+      if (formattedUser.profile.resume) {
+        formattedUser.profile.resume = buildResumeResponse(formattedUser.profile.resume);
+      }
+      if (formattedUser.profile.image) {
+        formattedUser.profile.image.url = getSignedUrl(user.profile.image.public_id, { sourceUrl: user.profile.image.url }) || user.profile.image.url;
+      }
+      if (formattedUser.profile.coverImage) {
+        formattedUser.profile.coverImage.url = getSignedUrl(user.profile.coverImage.public_id, { sourceUrl: user.profile.coverImage.url }) || user.profile.coverImage.url;
+      }
+    }
 
     res.status(200).json(
       new ApiResponse(200, formattedUser, "User profile fetched successfully")
@@ -47,10 +67,13 @@ export const getUserUploads = async (req, res) => {
       return res.status(404).json(new ApiError(404, "User not found"));
     }
 
+    const resumeResponse = buildResumeResponse(user.profile?.resume);
+
     const uploads = {
-      resume: user.profile?.resume || null,
-      profileImage: user.profile?.image || null,
-      coverImage: user.profile?.coverImage || null,
+      resume: resumeResponse,
+      resumeDownload: resumeResponse?.downloadUrl || null,
+      profileImage: getSignedUrl(user.profile?.image?.public_id, { sourceUrl: user.profile?.image?.url }) || user.profile?.image?.url || null,
+      coverImage: getSignedUrl(user.profile?.coverImage?.public_id, { sourceUrl: user.profile?.coverImage?.url }) || user.profile?.coverImage?.url || null,
     };
 
     res.status(200).json(
@@ -145,7 +168,14 @@ export const deleteProfile = async (req, res) => {
 
     // 2. Clear Cloudinary files
     if (user.profile?.resume?.public_id) {
-      await deleteFromCloudinary(user.profile.resume.public_id, "raw");
+      const resume = user.profile.resume;
+      const resolved = resolveCloudinaryAssetInfo({
+        resourceType: resume.resource_type,
+        type: resume.type,
+        sourceUrl: resume.url,
+      });
+      const resumeResourceType = resolved.resourceType || "raw";
+      await deleteFromCloudinary(resume.public_id, resumeResourceType, resolved.type);
     }
 
     if (user.profile?.image?.public_id) {
@@ -183,8 +213,21 @@ export const getAllUsersAndHrs = async (req, res) => {
     // Optional: Format users if needed, or send as is (excluding password)
     // const formattedUsers = users.map(user => formatUserResponse(user));
 
+    const formattedUsers = users.map(user => {
+      const userObj = user.toObject ? user.toObject() : user;
+      if (userObj.profile) {
+        if (userObj.profile.image) {
+          userObj.profile.image.url = getSignedUrl(userObj.profile.image.public_id, { sourceUrl: userObj.profile.image.url }) || userObj.profile.image.url;
+        }
+        if (userObj.profile.coverImage) {
+          userObj.profile.coverImage.url = getSignedUrl(userObj.profile.coverImage.public_id, { sourceUrl: userObj.profile.coverImage.url }) || userObj.profile.coverImage.url;
+        }
+      }
+      return userObj;
+    });
+
     res.status(200).json(
-      new ApiResponse(200, users, "All users and HRs fetched successfully")
+      new ApiResponse(200, formattedUsers, "All users and HRs fetched successfully")
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch users"));
@@ -212,7 +255,14 @@ export const adminDeleteUser = async (req, res) => {
 
     // 2. Clear Cloudinary files
     if (user.profile?.resume?.public_id) {
-      await deleteFromCloudinary(user.profile.resume.public_id, "raw");
+      const resume = user.profile.resume;
+      const resolved = resolveCloudinaryAssetInfo({
+        resourceType: resume.resource_type,
+        type: resume.type,
+        sourceUrl: resume.url,
+      });
+      const resumeResourceType = resolved.resourceType || "raw";
+      await deleteFromCloudinary(resume.public_id, resumeResourceType, resolved.type);
     }
 
     if (user.profile?.image?.public_id) {
@@ -242,7 +292,6 @@ export const adminDeleteUser = async (req, res) => {
   }
 };
 
-import { uploadOnCloudinary, deleteFromCloudinary } from "../config/cloudinary.js";
 import fs from "fs";
 
 /* ======================
@@ -262,7 +311,14 @@ export const uploadResumeController = async (req, res) => {
     // 🔥 CLEANUP OLD RESUME
     if (user.profile?.resume?.public_id) {
       /* IF CLOUDINARY */
-      await deleteFromCloudinary(user.profile.resume.public_id, "raw");
+      const resume = user.profile.resume;
+      const resolved = resolveCloudinaryAssetInfo({
+        resourceType: resume.resource_type,
+        type: resume.type,
+        sourceUrl: resume.url,
+      });
+      const resumeResourceType = resolved.resourceType || "raw";
+      await deleteFromCloudinary(resume.public_id, resumeResourceType, resolved.type);
     } else if (user.profile?.resume?.url?.includes("/temp/")) {
       /* IF LOCAL FALLBACK */
       try {
@@ -280,12 +336,16 @@ export const uploadResumeController = async (req, res) => {
       resumeData = {
         url: cloudinaryResponse.secure_url,
         public_id: cloudinaryResponse.public_id,
+        resource_type: cloudinaryResponse.resource_type,
+        type: cloudinaryResponse.type,
       };
       fs.unlinkSync(req.file.path);
     } else {
       resumeData = {
         url: `${req.protocol}://${req.get("host")}/temp/${req.file.filename}`,
         public_id: null,
+        resource_type: null,
+        type: null,
       };
     }
 
@@ -294,7 +354,9 @@ export const uploadResumeController = async (req, res) => {
       $set: { "profile.resume": resumeData },
     });
 
-    res.status(200).json(new ApiResponse(200, resumeData, "Resume uploaded successfully"));
+    const responseData = buildResumeResponse(resumeData);
+
+    res.status(200).json(new ApiResponse(200, responseData, "Resume uploaded successfully"));
 
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Resume processing failed"));
@@ -319,7 +381,7 @@ export const uploadProfileImageController = async (req, res) => {
     // 🔥 CLEANUP OLD PROFILE IMAGE
     if (user.profile?.image?.public_id) {
       /* IF CLOUDINARY */
-      await deleteFromCloudinary(user.profile.image.public_id);
+      await deleteFromCloudinary(user.profile.image.public_id, user.profile.image.resource_type || "image", user.profile.image.type);
     } else if (user.profile?.image?.url?.includes("/temp/")) {
       /* IF LOCAL FALLBACK */
       try {
@@ -337,12 +399,16 @@ export const uploadProfileImageController = async (req, res) => {
       imageData = {
         url: cloudinaryResponse.secure_url,
         public_id: cloudinaryResponse.public_id,
+        resource_type: cloudinaryResponse.resource_type,
+        type: cloudinaryResponse.type,
       };
       fs.unlinkSync(req.file.path);
     } else {
       imageData = {
         url: `${req.protocol}://${req.get("host")}/temp/${req.file.filename}`,
         public_id: null,
+        resource_type: null,
+        type: null,
       };
     }
 
@@ -351,7 +417,12 @@ export const uploadProfileImageController = async (req, res) => {
       $set: { "profile.image": imageData },
     });
 
-    res.status(200).json(new ApiResponse(200, imageData, "Profile image uploaded successfully"));
+    const finalImageData = { ...imageData };
+    if (finalImageData.public_id) {
+      finalImageData.url = getSignedUrl(finalImageData.public_id, { sourceUrl: finalImageData.url }) || finalImageData.url;
+    }
+
+    res.status(200).json(new ApiResponse(200, finalImageData, "Profile image uploaded successfully"));
 
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Profile image upload failed"));
@@ -375,7 +446,7 @@ export const uploadCoverImageController = async (req, res) => {
     // 🔥 CLEANUP OLD COVER IMAGE
     if (user.profile?.coverImage?.public_id) {
       /* IF CLOUDINARY */
-      await deleteFromCloudinary(user.profile.coverImage.public_id);
+      await deleteFromCloudinary(user.profile.coverImage.public_id, user.profile.coverImage.resource_type || "image", user.profile.coverImage.type);
     } else if (user.profile?.coverImage?.url?.includes("/temp/")) {
       /* IF LOCAL FALLBACK */
       try {
@@ -393,12 +464,16 @@ export const uploadCoverImageController = async (req, res) => {
       coverData = {
         url: cloudinaryResponse.secure_url,
         public_id: cloudinaryResponse.public_id,
+        resource_type: cloudinaryResponse.resource_type,
+        type: cloudinaryResponse.type,
       };
       fs.unlinkSync(req.file.path);
     } else {
       coverData = {
         url: `${req.protocol}://${req.get("host")}/temp/${req.file.filename}`,
         public_id: null,
+        resource_type: null,
+        type: null,
       };
     }
 
@@ -407,7 +482,12 @@ export const uploadCoverImageController = async (req, res) => {
       $set: { "profile.coverImage": coverData },
     });
 
-    res.status(200).json(new ApiResponse(200, coverData, "Cover image uploaded successfully"));
+    const finalCoverData = { ...coverData };
+    if (finalCoverData.public_id) {
+      finalCoverData.url = getSignedUrl(finalCoverData.public_id, { sourceUrl: finalCoverData.url }) || finalCoverData.url;
+    }
+
+    res.status(200).json(new ApiResponse(200, finalCoverData, "Cover image uploaded successfully"));
 
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Cover image upload failed"));

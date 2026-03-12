@@ -26,6 +26,7 @@ import { getRankedCandidatesSchema } from "../validations/rank.validation.js";
 import { findApplicationWithDetails } from "../repositories/application.repository.js";
 import { normalizeSkillsInput, normalizeSkillCompareKey } from "../utils/skills-normalizer.js";
 import { notifyApplicationStatusChange } from "../services/application-status-notification.service.js";
+import { buildResumeResponse, getSignedUrl } from "../config/cloudinary.js";
 
 /* ================= APPLY JOB & Create Application================= */
 
@@ -214,8 +215,22 @@ export const getApplicationsForJob = async (req, res) => {
 
     const applications = await getApplicationsByJob(jobId);
 
+    // Sign resume URLs for each application
+    const applicationsWithSignedResumes = applications.map(app => {
+      const appObj = app.toObject ? app.toObject() : app;
+      if (appObj.user?.profile) {
+        if (appObj.user.profile.resume) {
+          appObj.user.profile.resume = buildResumeResponse(appObj.user.profile.resume);
+        }
+        if (appObj.user.profile.image) {
+          appObj.user.profile.image.url = getSignedUrl(appObj.user.profile.image.public_id, { sourceUrl: appObj.user.profile.image.url }) || appObj.user.profile.image.url;
+        }
+      }
+      return appObj;
+    });
+
     res.status(200).json(
-      new ApiResponse(200, applications, "Applications fetched successfully")
+      new ApiResponse(200, applicationsWithSignedResumes, "Applications fetched successfully")
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch applications"));
@@ -297,8 +312,19 @@ export const getApplicationDetailsController = async (req, res) => {
       await incrementProfileVisits(application.user._id);
     }
 
+    // Sign resume URL if it exists
+    const appObj = application.toObject ? application.toObject() : application;
+    if (appObj.user?.profile) {
+      if (appObj.user.profile.resume) {
+        appObj.user.profile.resume = buildResumeResponse(appObj.user.profile.resume);
+      }
+      if (appObj.user.profile.image) {
+        appObj.user.profile.image.url = getSignedUrl(appObj.user.profile.image.public_id, { sourceUrl: appObj.user.profile.image.url }) || appObj.user.profile.image.url;
+      }
+    }
+
     res.status(200).json(
-      new ApiResponse(200, application, "Application details fetched successfully")
+      new ApiResponse(200, appObj, "Application details fetched successfully")
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch application details"));
@@ -377,8 +403,22 @@ export const getApplicationsByStatusController = async (req, res) => {
       );
     }
 
+    // Sign resume URLs for each application
+    const applicationsWithSignedResumes = applications.map(app => {
+      const appObj = app.toObject ? app.toObject() : app;
+      if (appObj.user?.profile) {
+        if (appObj.user.profile.resume) {
+          appObj.user.profile.resume = buildResumeResponse(appObj.user.profile.resume);
+        }
+        if (appObj.user.profile.image) {
+          appObj.user.profile.image.url = getSignedUrl(appObj.user.profile.image.public_id, { sourceUrl: appObj.user.profile.image.url }) || appObj.user.profile.image.url;
+        }
+      }
+      return appObj;
+    });
+
     res.status(200).json(
-      new ApiResponse(200, applications, `Applications with status '${status}' fetched successfully`)
+      new ApiResponse(200, applicationsWithSignedResumes, `Applications with status '${status}' fetched successfully`)
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch applications by status"));

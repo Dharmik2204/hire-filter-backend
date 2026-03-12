@@ -29,6 +29,16 @@ const addressSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const assetSchema = new mongoose.Schema(
+  {
+    url: String,
+    public_id: String,
+    resource_type: String,
+    type: String,
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     name: {
@@ -72,10 +82,7 @@ const userSchema = new mongoose.Schema(
     permanentAddress: addressSchema,
 
     profile: {
-      image: {
-        url: String,
-        public_id: String,
-      },
+      image: assetSchema,
       skills: [{ type: String, trim: true }],
 
       experience: {
@@ -85,15 +92,9 @@ const userSchema = new mongoose.Schema(
 
       education: String,
 
-      resume: {
-        url: String,
-        public_id: String,
-      },
+      resume: assetSchema,
 
-      coverImage: {
-        url: String,
-        public_id: String,
-      },
+      coverImage: assetSchema,
 
       portfolio: String, // GitHub / Portfolio URL
       bio: String,
@@ -135,4 +136,5 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-export const User = mongoose.model("User", userSchema);
+// Prevent re-compilation issues during hot-reload
+export const User = mongoose.models.User || mongoose.model("User", userSchema);
