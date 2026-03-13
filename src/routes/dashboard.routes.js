@@ -5,7 +5,8 @@ import {
 } from "../middlewares/authorize.middlewares.js";
 import {
     getCandidateStats,
-    getHrStats
+    getHrStats,
+    getAdminStats
 } from "../controllers/dashboard.js";
 
 const router = express.Router();
@@ -22,6 +23,13 @@ router.get(
     authMiddleware,
     authorizeRoles("hr", "admin"),
     getHrStats
+);
+
+router.get(
+    "/admin-stats",
+    authMiddleware,
+    authorizeRoles("admin"),
+    getAdminStats
 );
 
 export default router;

@@ -184,6 +184,35 @@ export const getJobStats = async () => {
   return stats[0] || { totalJobs: 0, activeJobs: 0, closedJobs: 0, openStatusJobs: 0 };
 };
 
+export const getJobGrowthStats = async () => {
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = currentMonthStart;
+
+  const stats = await Job.aggregate([
+    {
+      $facet: {
+        total: [{ $count: "count" }],
+        currentMonth: [
+          { $match: { createdAt: { $gte: currentMonthStart } } },
+          { $count: "count" }
+        ],
+        lastMonth: [
+          { $match: { createdAt: { $gte: lastMonthStart, $lt: lastMonthEnd } } },
+          { $count: "count" }
+        ]
+      }
+    }
+  ]);
+
+  return {
+    total: stats[0].total[0]?.count || 0,
+    currentMonth: stats[0].currentMonth[0]?.count || 0,
+    lastMonth: stats[0].lastMonth[0]?.count || 0,
+  };
+};
+
 export const getAllJobsAdmin = ({ page = 1, limit = 10, search = "" }) => {
   const query = {};
 

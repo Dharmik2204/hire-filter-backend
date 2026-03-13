@@ -171,6 +171,12 @@ export const countHrApplicationsByStatus = async (hrId, status) => {
     return Application.countDocuments(query);
 };
 
+export const countAllApplicationsByStatus = (status) => {
+    const query = {};
+    if (status) query.status = status;
+    return Application.countDocuments(query);
+};
+
 export const findApplicationWithDetails = (id) => {
     return Application.findById(id)
         .populate("user", "name email phone profile")

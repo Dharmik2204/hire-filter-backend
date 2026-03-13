@@ -36,6 +36,56 @@ export const findAllUsersAndHrs = () => {
   return User.find({ role: { $in: ["user", "hr"] } }).select("-password");
 };
 
+export const getUserGrowthStats = async () => {
+  const now = new Date();
+  const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonthEnd = currentMonthStart;
+
+  const stats = await User.aggregate([
+    {
+      $match: { role: { $in: ["user", "hr"] } }
+    },
+    {
+      $facet: {
+        totalUsers: [
+          { $match: { role: "user" } },
+          { $count: "count" }
+        ],
+        totalHrs: [
+          { $match: { role: "hr" } },
+          { $count: "count" }
+        ],
+        usersCurrentMonth: [
+          { $match: { role: "user", createdAt: { $gte: currentMonthStart } } },
+          { $count: "count" }
+        ],
+        hrsCurrentMonth: [
+          { $match: { role: "hr", createdAt: { $gte: currentMonthStart } } },
+          { $count: "count" }
+        ],
+        usersLastMonth: [
+          { $match: { role: "user", createdAt: { $gte: lastMonthStart, $lt: lastMonthEnd } } },
+          { $count: "count" }
+        ],
+        hrsLastMonth: [
+          { $match: { role: "hr", createdAt: { $gte: lastMonthStart, $lt: lastMonthEnd } } },
+          { $count: "count" }
+        ]
+      }
+    }
+  ]);
+
+  return {
+    totalUsers: stats[0].totalUsers[0]?.count || 0,
+    totalHrs: stats[0].totalHrs[0]?.count || 0,
+    usersCurrentMonth: stats[0].usersCurrentMonth[0]?.count || 0,
+    hrsCurrentMonth: stats[0].hrsCurrentMonth[0]?.count || 0,
+    usersLastMonth: stats[0].usersLastMonth[0]?.count || 0,
+    hrsLastMonth: stats[0].hrsLastMonth[0]?.count || 0,
+  };
+};
+
 export const findUsersByRoles = (roles = [], { excludeUserIds = [], isActiveOnly = true } = {}) => {
   const query = {
     role: { $in: roles },
