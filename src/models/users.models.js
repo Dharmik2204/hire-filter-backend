@@ -43,7 +43,7 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: true,
+      required: function() { return this.isEmailVerified; },
       trim: true,
     },
 
@@ -56,7 +56,7 @@ const userSchema = new mongoose.Schema(
 
     password: {
       type: String,
-      required: true,
+      required: function() { return this.isEmailVerified; },
     },
 
     role: {
@@ -124,6 +124,10 @@ const userSchema = new mongoose.Schema(
     otpAttempts: {
       type: Number,
       default: 0
+    },
+    isEmailVerified: {
+      type: Boolean,
+      default: false,
     },
     profileVisits: {
       type: Number,

@@ -1,11 +1,114 @@
-import { findUserByEmail, updateUserToken, createUser, deleteUser, saveOTP, clearOTPAndUpdatePassword, incrementOtpAttempts } from "../repositories/user.repository.js";
+import { findUserByEmail, updateUserToken, createUser, updateUser, deleteUser, saveOTP, clearOTP, clearOTPAndUpdatePassword, incrementOtpAttempts } from "../repositories/user.repository.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/sendEmail.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { formatError } from "../utils/errorHandler.js";
-import { signupSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema } from "../validations/auth.validation.js";
+import { signupSchema, loginSchema, forgotPasswordSchema, resetPasswordSchema, sendSignupOtpSchema, verifySignupOtpSchema } from "../validations/auth.validation.js";
+
+//sendSignupOtp
+export const sendSignupOtp = async (req, res) => {
+    try {
+        const { error, value } = sendSignupOtpSchema.validate(req.body, { abortEarly: false });
+
+        if (error) {
+            const errorMessages = error.details.map((detail) => detail.message);
+            return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
+        }
+
+        const { email } = value;
+        let user = await findUserByEmail(email);
+
+        if (user && user.isEmailVerified && user.name) {
+            return res.status(409).json(new ApiError(409, "User already exists", ["User already exists"]));
+        }
+
+        const otp = Math.floor(100000 + Math.random() * 900000);
+        const otpExpiry = Date.now() + 10 * 60 * 1000; // 10 minutes
+        const hashedOtp = await bcrypt.hash(String(otp), 10);
+
+        if (!user) {
+            user = await createUser({
+                email,
+                isEmailVerified: false
+            });
+        }
+
+        await saveOTP(user._id, hashedOtp, otpExpiry);
+
+        await sendEmail({
+            to: email,
+            subject: "Signup Email Verification OTP",
+            text: `Your OTP is ${otp}. It is valid for 10 minutes.`,
+            html: `
+        <h2>Email Verification</h2>
+        <p>Your OTP to verify your email for signup is:</p>
+        <h1>${otp}</h1>
+        <p>This OTP is valid for 10 minutes.</p>
+      `,
+        });
+
+        res.status(200).json(
+            new ApiResponse(200, null, "OTP sent successfully to your email")
+        );
+    } catch (error) {
+        res.status(500).json(formatError(error, 500, "Internal Server Error"));
+    }
+};
+
+//verifySignupOtp
+export const verifySignupOtp = async (req, res) => {
+    try {
+        const { error, value } = verifySignupOtpSchema.validate(req.body, { abortEarly: false });
+
+        if (error) {
+            const errorMessages = error.details.map((detail) => detail.message);
+            return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
+        }
+
+        const { email, otp } = value;
+        const user = await findUserByEmail(email);
+
+        if (!user || (user.isEmailVerified && user.name)) {
+             return res.status(400).json(new ApiError(400, "Invalid request", ["Invalid request"]));
+        }
+
+        // OTP missing or expired
+        if (!user.otp || user.otpExpiry < Date.now()) {
+            return res.status(400).json(new ApiError(400, "Invalid or expired OTP", ["Invalid or expired OTP"]));
+        }
+
+        // Max attempts reached
+        if (user.otpAttempts >= 3) {
+            await clearOTP(user._id);
+            return res.status(400).json(new ApiError(400, "OTP attempts exceeded. Please request a new OTP.", ["OTP attempts exceeded. Please request a new OTP."]));
+        }
+
+        // Compare OTP
+        const isOtpValid = await bcrypt.compare(String(otp), user.otp);
+
+        if (!isOtpValid) {
+            await incrementOtpAttempts(user._id);
+            return res.status(400).json(new ApiError(400, "Invalid or expired OTP", ["Invalid or expired OTP"]));
+        }
+
+        // OTP correct → set isEmailVerified true and clear OTP
+        await updateUser(user._id, {
+             isEmailVerified: true,
+             otp: null,
+             otpExpiry: null,
+             otpAttempts: 0
+        });
+
+        return res.status(200).json(
+             new ApiResponse(200, null, "Email verified successfully. You can now complete your signup.")
+        );
+
+    } catch (error) {
+        return res.status(500).json(formatError(error, 500, "Internal Server Error"));
+    }
+};
 
 //signup
 
@@ -34,7 +137,12 @@ export const signup = async (req, res) => {
         }
 
         const userExists = await findUserByEmail(email);
-        if (userExists) {
+        
+        if (!userExists || !userExists.isEmailVerified) {
+            return res.status(403).json(new ApiError(403, "Email not verified. Please verify OTP first.", ["Email not verified. Please verify OTP first."]));
+        }
+
+        if (userExists.name && userExists.password) {
             return res.status(409).json(new ApiError(409, "User already exists", ["User already exists"]));
         }
 
@@ -44,13 +152,12 @@ export const signup = async (req, res) => {
 
         const userPayload = {
             name,
-            email,
             password: hashedPassword,
             role,
             company: role === "hr" ? { name: companyName } : undefined,
         };
 
-        await createUser(userPayload);
+        await updateUser(userExists._id, userPayload);
 
         return res.status(201).json(
             new ApiResponse(201, null, `${role} signup successful`)

@@ -101,3 +101,17 @@ export const resetPasswordSchema = Joi.object({
         "any.required": "New password is required",
     }),
 });
+
+export const sendSignupOtpSchema = Joi.object({
+    email: Joi.string().trim().email().required().messages({
+        "string.email": "Please provide a valid email address",
+        "string.empty": "Email is required",
+    }),
+});
+
+export const verifySignupOtpSchema = Joi.object({
+    email: Joi.string().trim().email().required(),
+    otp: Joi.alternatives().try(Joi.string(), Joi.number()).required().messages({
+        "any.required": "OTP is required",
+    }),
+});
