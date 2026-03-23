@@ -3,7 +3,7 @@ import { ApiError } from "../utils/ApiError.js";
 
 /**
  * Middleware to strictly validate that any parameter ending with 'Id' 
- * in the URL route (like :examId, :jobId) is a valid MongoDB ObjectID.
+ * in the URL route (like :jobId) is a valid MongoDB ObjectID.
  */
 export const validateObjectIdParams = (req, res, next) => {
     // Loop through all URL parameters in the current request

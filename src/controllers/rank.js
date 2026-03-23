@@ -1,5 +1,5 @@
 import {
-  getRankedApplicationsWithExamDetails,
+  getRankedApplicationsWithPagination,
   updateApplicationStatus,
   findApplicationWithDetails
 } from "../repositories/application.repository.js";
@@ -25,7 +25,7 @@ export const getRankedCandidates = async (req, res) => {
     const { page = 1, limit = 10 } = req.query; // Pagination params
 
     // Pass pagination to repository
-    const result = await getRankedApplicationsWithExamDetails(jobId, parseInt(page), parseInt(limit));
+    const result = await getRankedApplicationsWithPagination(jobId, parseInt(page), parseInt(limit));
 
     // Refine response for a professional HR Analytics view
     const refinedCandidates = result.candidates.map(app => ({
@@ -38,15 +38,8 @@ export const getRankedCandidates = async (req, res) => {
       },
       scoring: {
         skillsScore: app.skillsScore,
-        examScore: app.examScore,
         totalScore: app.score,
         rank: app.rank
-      },
-      examAnalytics: {
-        rawMarks: app.examRawMarks,
-        totalMarks: app.examTotalMarks,
-        status: app.examResultStatus,
-        attemptId: app.examAttempt?._id
       },
       skillsAnalysis: {
         matched: app.matchedSkills,
@@ -140,7 +133,7 @@ export const getPublicRankList = async (req, res) => {
     }
 
     // Reuse existing repository function with pagination
-    const result = await getRankedApplicationsWithExamDetails(jobId, parseInt(page), parseInt(limit));
+    const result = await getRankedApplicationsWithPagination(jobId, parseInt(page), parseInt(limit));
 
     // Filter for ranked candidates only (rank > 0) and sanitize data
     // Note: If repository returns paginated object, we need to map candidates inside it.
@@ -155,7 +148,6 @@ export const getPublicRankList = async (req, res) => {
         rank: app.rank,
         maskedName: app.user.name.split(" ")[0] + "***", // Masked Name
         skillsScore: app.skillsScore,
-        examScore: app.examScore,
         totalScore: app.score
       }));
 

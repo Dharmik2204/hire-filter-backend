@@ -1,7 +1,6 @@
 export const NOTIFICATION_TYPES = Object.freeze({
     MESSAGE: "message",
     APPLICATION_STATUS: "application_status",
-    EXAM_RESULT: "exam_result",
     JOB_ALERT: "job_alert",
     SYSTEM: "system",
 });

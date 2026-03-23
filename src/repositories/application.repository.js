@@ -11,10 +11,6 @@ export const createApplication = async ({
     phone,
     score,
     skillsScore,
-    examScore,
-    examRawMarks,
-    examTotalMarks,
-    examResultStatus,
     linkedinProfile,
     portfolioWebsite,
     workExperience,
@@ -33,10 +29,6 @@ export const createApplication = async ({
         phone,
         score,
         skillsScore,
-        examScore,
-        examRawMarks,
-        examTotalMarks,
-        examResultStatus,
         linkedinProfile,
         portfolioWebsite,
         workExperience,
@@ -81,15 +73,11 @@ export const updateApplicationScore = (id, score) => {
     );
 };
 
-export const updateApplicationScoring = (id, { score, examScore, examRawMarks, examTotalMarks, examResultStatus }) => {
+export const updateApplicationScoring = (id, { score }) => {
     return Application.findByIdAndUpdate(
         id,
         {
-            score,
-            examScore,
-            examRawMarks,
-            examTotalMarks,
-            examResultStatus
+            score
         },
         { new: true }
     );
@@ -110,15 +98,13 @@ export const getRankedApplications = async (jobId) => {
         .sort({ score: -1 });
 };
 
-export const getRankedApplicationsWithExamDetails = async (jobId, page = 1, limit = 10) => {
-    const { ExamAttempt } = await import("../models/exam.models.js");
-
+export const getRankedApplicationsWithPagination = async (jobId, page = 1, limit = 10) => {
     const skip = (page - 1) * limit;
 
     // Get total count for pagination metadata
     const total = await Application.countDocuments({ job: jobId });
 
-    const applications = await Application.find({ job: jobId })
+    const candidates = await Application.find({ job: jobId })
         .populate("user", "name email phone")
         .populate("job", "jobTitle companyName")
         .sort({ score: -1 }) // Sort by score descending (highest first)
@@ -126,28 +112,8 @@ export const getRankedApplicationsWithExamDetails = async (jobId, page = 1, limi
         .limit(limit)
         .lean();
 
-    // Fetch exam attempts for each application
-    const applicationsWithExams = await Promise.all(
-        applications.map(async (app) => {
-            const examAttempt = await ExamAttempt.findOne({ application: app._id })
-                .populate("exam", "title examType passingMarks durationMinutes")
-                .lean();
-
-            return {
-                ...app,
-                examAttempt: examAttempt ? {
-                    score: examAttempt.score,
-                    result: examAttempt.result,
-                    status: examAttempt.status,
-                    startedAt: examAttempt.startedAt,
-                    exam: examAttempt.exam
-                } : null
-            };
-        })
-    );
-
     return {
-        candidates: applicationsWithExams,
+        candidates,
         total,
         page,
         totalPages: Math.ceil(total / limit)

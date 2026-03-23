@@ -1,29 +1,19 @@
 import { Application } from "../models/application.models.js";
 
 /**
- * Calculates a composite score based on Exam Score and Skills Match.
+ * Calculates a score strictly based on Skills Match.
  * Formula: 
- * - Exam Score: 50% weight (assuming max 100)
- * - Skills Match: 50% weight (ratio of matched/total * 100)
+ * - Skills Match: (matched/total * 100)
  * 
- * @param {number} examScore - The score obtained in the exam (e.g., 80)
- * @param {number} totalExamMarks - Maximum possible marks in the exam
  * @param {number} matchedSkillsCount - Number of skills matched
  * @param {number} totalSkillsCount - Total required skills for the job
  * @returns {number} - The calculated composite score (0-100)
  */
-export const calculateCompositeScore = (examScore, totalExamMarks, matchedSkillsCount, totalSkillsCount) => {
-    // Normalize Exam Score to 0-100
-    const normalizedExamScore = totalExamMarks > 0 ? (examScore / totalExamMarks) * 100 : 0;
-
+export const calculateCompositeScore = (matchedSkillsCount, totalSkillsCount) => {
     // Normalize Skills Score to 0-100
     const normalizedSkillsScore = totalSkillsCount > 0 ? (matchedSkillsCount / totalSkillsCount) * 100 : 0;
 
-    // Weighting: 50% Exam, 50% Skills
-    // You can adjust these weights as needed
-    const weightedScore = (normalizedExamScore * 0.5) + (normalizedSkillsScore * 0.5);
-
-    return Math.round(weightedScore * 100) / 100; // Round to 2 decimal places
+    return Math.round(normalizedSkillsScore * 100) / 100; // Round to 2 decimal places
 };
 
 /**

@@ -117,11 +117,11 @@ export const applyJobController = async (req, res) => {
         }
       });
 
-      // (Match Ratio) * 50
-      skillsScore = (matchedSkills.length / jobSkills.length) * 50;
+      // (Match Ratio) * 100
+      skillsScore = (matchedSkills.length / jobSkills.length) * 100;
     } else {
       // If no required skills are defined, the candidate gets full credit for the skills portion
-      skillsScore = 50;
+      skillsScore = 100;
     }
 
     // Handle Fresher / Experience Validation
@@ -150,10 +150,6 @@ export const applyJobController = async (req, res) => {
       phone: applicationPhone,
       score: totalScore,
       skillsScore: Math.round(skillsScore),
-      examScore: 0,
-      examRawMarks: 0,
-      examTotalMarks: 0,
-      examResultStatus: "pending",
       linkedinProfile: applicationLinkedin,
       portfolioWebsite: applicationPortfolio,
       workExperience: applicationWorkExp,

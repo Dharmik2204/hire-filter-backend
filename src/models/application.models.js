@@ -87,27 +87,6 @@ const applicationSchema = new mongoose.Schema(
       default: 0,
     },
 
-    examScore: {
-      type: Number,
-      default: 0,
-    },
-
-    examRawMarks: {
-      type: Number,
-      default: 0,
-    },
-
-    examTotalMarks: {
-      type: Number,
-      default: 0,
-    },
-
-    examResultStatus: {
-      type: String,
-      enum: ["pass", "fail", "pending"],
-      default: "pending",
-    },
-
     status: {
       type: String,
       enum: [

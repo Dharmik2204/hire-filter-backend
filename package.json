@@ -7,8 +7,7 @@
     "dev": "nodemon server.js",
     "start": "node server.js",
     "start:prod": "NODE_ENV=production node server.js",
-    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand",
-    "migrate:exams": "node scripts/migrate_exam_indices.js"
+    "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest --runInBand"
   },
   "keywords": [],
   "author": "",

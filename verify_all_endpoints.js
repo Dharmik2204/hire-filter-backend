@@ -62,10 +62,7 @@ async function run() {
     // 5. Application Routes (Protected)
     await testEndpoint('Apps - My Apps', `${BASE_URL}/application/my`, 'GET', [401]);
 
-    // 6. Exam Routes (Protected)
-    await testEndpoint('Exams - Create', `${BASE_URL}/exams`, 'POST', [401]);
-
-    // 7. Rank Routes (Protected)
+    // 6. Rank Routes (Protected)
     await testEndpoint('Ranks - Get (Invalid ID)', `${BASE_URL}/ranks/123`, 'GET', [401]);
 
     console.log("\nVerification Complete.");
