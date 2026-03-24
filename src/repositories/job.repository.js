@@ -1,4 +1,6 @@
 import { Job } from "../models/job.models.js";
+import { User } from "../models/users.models.js";
+import mongoose from "mongoose";
 import { normalizeSkillsInput } from "../utils/skills-normalizer.js";
 
 /* ================= CREATE ================= */
@@ -230,4 +232,55 @@ export const getAllJobsAdmin = ({ page = 1, limit = 10, search = "" }) => {
     .skip(skip)
     .limit(limit)
     .populate("createdBy", "name email"); // Optional: populate creator info
+};
+
+/* ================= SAVED JOBS ================= */
+
+/**
+ * Toggles the saved status of a job for a user.
+ * Increments/Decrements job.saveCount accordingly.
+ * Uses a transaction for consistency.
+ */
+export const toggleJobSave = async (userId, jobId) => {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+    try {
+        const user = await User.findById(userId).session(session);
+        if (!user) throw new Error("User not found");
+
+        const isSaved = user.savedJobs.includes(jobId);
+
+        if (isSaved) {
+            // Unsave
+            await User.findByIdAndUpdate(userId, { $pull: { savedJobs: jobId } }, { session });
+            await Job.findByIdAndUpdate(jobId, { $inc: { saveCount: -1 } }, { session });
+        } else {
+            // Save
+            await User.findByIdAndUpdate(userId, { $addToSet: { savedJobs: jobId } }, { session });
+            await Job.findByIdAndUpdate(jobId, { $inc: { saveCount: 1 } }, { session });
+        }
+
+        await session.commitTransaction();
+        return { isSaved: !isSaved };
+    } catch (error) {
+        await session.abortTransaction();
+        throw error;
+    } finally {
+        session.endSession();
+    }
+};
+
+/**
+ * Fetches all jobs saved by a specific user.
+ */
+export const getSavedJobsByUser = async (userId) => {
+    const user = await User.findById(userId)
+        .populate({
+            path: "savedJobs",
+            match: { isActive: true },
+            populate: { path: "createdBy", select: "name company" }
+        })
+        .lean();
+
+    return user?.savedJobs || [];
 };

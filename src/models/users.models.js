@@ -133,12 +133,20 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    savedJobs: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Job",
+      },
+    ],
 
   },
   {
     timestamps: true,
   }
 );
+
+userSchema.index({ savedJobs: 1 });
 
 // Prevent re-compilation issues during hot-reload
 export const User = mongoose.models.User || mongoose.model("User", userSchema);

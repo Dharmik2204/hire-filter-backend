@@ -1,7 +1,6 @@
 import express from "express";
 import { authorizeRoles, authMiddleware } from "../middlewares/authorize.middlewares.js";
 
-
 import {
   createJobController,
   updateJobController,
@@ -10,9 +9,10 @@ import {
   getJobsController,
   deleteHardJobController,
   getJobStatsController,
-  getJobsAdminController
+  getJobsAdminController,
+  toggleSaveJobController,
+  getSavedJobsController
 } from "../controllers/job.js";
-
 
 export const router = express.Router();
 
@@ -22,9 +22,6 @@ router.post(
   authorizeRoles("admin", "hr"),
   createJobController
 );
-
-
-
 
 router.get("/", getJobsController);
 
@@ -46,6 +43,24 @@ router.get(
   getJobsAdminController
 );
 
+/* =====================
+   SAVED JOBS ROUTES
+===================== */
+
+router.post(
+  "/toggle-save/:id",
+  authMiddleware,
+  authorizeRoles("user"),
+  toggleSaveJobController
+);
+
+router.get(
+  "/saved",
+  authMiddleware,
+  authorizeRoles("user"),
+  getSavedJobsController
+);
+
 router.get("/:id", getJobByIdController);
 
 router.put(
@@ -61,15 +76,12 @@ router.delete(
   authorizeRoles("admin", "hr"),
   deleteJobController
 );
+
 router.delete(
   "/:id",
   authMiddleware,
   authorizeRoles("admin", "hr"),
   deleteHardJobController
 );
-
-
-
-
 
 export default router;

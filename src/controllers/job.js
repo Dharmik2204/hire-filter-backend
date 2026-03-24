@@ -9,7 +9,9 @@ import {
   getJobByIdInternal,
   hardDeleteJob,
   getJobStats,
-  getAllJobsAdmin
+  getAllJobsAdmin,
+  toggleJobSave,
+  getSavedJobsByUser
 } from "../repositories/job.repository.js";
 import mongoose from "mongoose";
 
@@ -322,5 +324,50 @@ export const getJobsAdminController = async (req, res) => {
     );
   } catch (error) {
     res.status(500).json(formatError(error, 500, "Failed to fetch jobs"));
+  }
+};
+
+/* ================= TOGGLE SAVE JOB ================= */
+
+export const toggleSaveJobController = async (req, res) => {
+  try {
+    const { id: jobId } = req.params;
+    const userId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(jobId)) {
+      return res.status(400).json(new ApiError(400, "Invalid Job ID format"));
+    }
+
+    const job = await getJobByIdInternal(jobId);
+    if (!job) {
+      return res.status(404).json(new ApiError(404, "Job not found"));
+    }
+
+    if (!job.isActive) {
+      return res.status(400).json(new ApiError(400, "Cannot save an inactive job"));
+    }
+
+    const result = await toggleJobSave(userId, jobId);
+
+    res.status(200).json(
+      new ApiResponse(200, result, result.isSaved ? "Job saved successfully" : "Job removed from saved list")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to toggle job save"));
+  }
+};
+
+/* ================= GET SAVED JOBS ================= */
+
+export const getSavedJobsController = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const savedJobs = await getSavedJobsByUser(userId);
+
+    res.status(200).json(
+      new ApiResponse(200, savedJobs, "Saved jobs fetched successfully")
+    );
+  } catch (error) {
+    res.status(500).json(formatError(error, 500, "Failed to fetch saved jobs"));
   }
 };
