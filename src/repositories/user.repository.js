@@ -1,4 +1,4 @@
-import mongoose from "mongoose";
+import mongoose from "mongoose";
 import { User } from "../models/users.models.js";
 
 /* ================= USER ================= */
@@ -7,6 +7,15 @@ export const findUserByEmail = (email) => {
   return User.findOne({ email });
 };
 
+export const findUserByPhone = (phone) => {
+  return User.findOne({ phone });
+};
+
+export const findUserByIdentifier = (identifier) => {
+  return User.findOne({
+    $or: [{ email: identifier }, { phone: identifier }]
+  });
+};
 
 export const findUserById = (id) => {
   return User.findOne({ _id: id });

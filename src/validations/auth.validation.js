@@ -14,10 +14,15 @@ export const signupSchema = Joi.object({
     email: Joi.string()
         .trim()
         .email()
-        .required()
         .messages({
             "string.email": "Please provide a valid email address",
-            "string.empty": "Email is required",
+        }),
+
+    phone: Joi.string()
+        .trim()
+        .pattern(/^[0-9+\-\s]+$/)
+        .messages({
+            "string.pattern.base": "Please provide a valid phone number",
         }),
 
     password: Joi.string()
@@ -60,16 +65,16 @@ export const signupSchema = Joi.object({
         .messages({
             "any.required": "Admin key is required for Admin signup",
         }),
-});
+}).or("email", "phone");
 
 export const loginSchema = Joi.object({
-    email: Joi.string()
+    identifier: Joi.string()
         .trim()
-        .email()
         .required()
+        .pattern(/^(?:[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[0-9+\-\s]{10,15})$/)
         .messages({
-            "string.email": "Please provide a valid email address",
-            "string.empty": "Email is required",
+            "string.empty": "Email or Phone is required",
+            "string.pattern.base": "Identifier must be a valid email or phone number",
         }),
 
     password: Joi.string()
@@ -81,18 +86,26 @@ export const loginSchema = Joi.object({
 });
 
 export const forgotPasswordSchema = Joi.object({
-    email: Joi.string()
+    identifier: Joi.string()
         .trim()
-        .email()
         .required()
+        .pattern(/^(?:[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[0-9+\-\s]{10,15})$/)
         .messages({
-            "string.email": "Please provide a valid email address",
-            "string.empty": "Email is required",
+            "string.empty": "Email or Phone is required",
+            "string.pattern.base": "Identifier must be a valid email or phone number",
         }),
 });
 
 export const resetPasswordSchema = Joi.object({
-    email: Joi.string().trim().email().required(),
+    identifier: Joi.string()
+        .trim()
+        .required()
+        .pattern(/^(?:[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[0-9+\-\s]{10,15})$/)
+        .messages({
+            "any.required": "Email or Phone is required",
+            "string.empty": "Email or Phone cannot be empty",
+            "string.pattern.base": "Identifier must be a valid email or phone number",
+        }),
     otp: Joi.alternatives().try(Joi.string(), Joi.number()).required().messages({
         "any.required": "OTP is required",
     }),
@@ -103,14 +116,25 @@ export const resetPasswordSchema = Joi.object({
 });
 
 export const sendSignupOtpSchema = Joi.object({
-    email: Joi.string().trim().email().required().messages({
-        "string.email": "Please provide a valid email address",
-        "string.empty": "Email is required",
-    }),
+    identifier: Joi.string()
+        .trim()
+        .required()
+        .pattern(/^(?:[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[0-9+\-\s]{10,15})$/)
+        .messages({
+            "string.empty": "Email or Phone is required",
+            "string.pattern.base": "Identifier must be a valid email or phone number",
+        }),
 });
 
 export const verifySignupOtpSchema = Joi.object({
-    email: Joi.string().trim().email().required(),
+    identifier: Joi.string()
+        .trim()
+        .required()
+        .pattern(/^(?:[a-zA-Z0-9._-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}|[0-9+\-\s]{10,15})$/)
+        .messages({
+            "string.empty": "Email or Phone is required",
+            "string.pattern.base": "Identifier must be a valid email or phone number",
+        }),
     otp: Joi.alternatives().try(Joi.string(), Joi.number()).required().messages({
         "any.required": "OTP is required",
     }),

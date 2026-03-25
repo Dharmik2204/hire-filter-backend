@@ -1,7 +1,8 @@
-import { findUserByEmail, updateUserToken, createUser, updateUser, deleteUser, saveOTP, clearOTP, clearOTPAndUpdatePassword, incrementOtpAttempts } from "../repositories/user.repository.js";
+import { findUserByEmail, findUserByIdentifier, updateUserToken, createUser, updateUser, deleteUser, saveOTP, clearOTP, clearOTPAndUpdatePassword, incrementOtpAttempts } from "../repositories/user.repository.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { sendEmail } from "../utils/sendEmail.js";
+import { sendSms } from "../utils/sendSms.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { ApiError } from "../utils/ApiError.js";
 import { formatError } from "../utils/errorHandler.js";
@@ -17,10 +18,12 @@ export const sendSignupOtp = async (req, res) => {
             return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
         }
 
-        const { email } = value;
-        let user = await findUserByEmail(email);
+        const { identifier } = value;
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+        
+        let user = await findUserByIdentifier(identifier);
 
-        if (user && user.isEmailVerified && user.name) {
+        if (user && (user.isEmailVerified || user.isPhoneVerified) && user.name) {
             return res.status(409).json(new ApiError(409, "User already exists", ["User already exists"]));
         }
 
@@ -29,28 +32,35 @@ export const sendSignupOtp = async (req, res) => {
         const hashedOtp = await bcrypt.hash(String(otp), 10);
 
         if (!user) {
-            user = await createUser({
-                email,
-                isEmailVerified: false
-            });
+            const createPayload = isEmail 
+                ? { email: identifier, isEmailVerified: false }
+                : { phone: identifier, isPhoneVerified: false };
+            user = await createUser(createPayload);
         }
 
         await saveOTP(user._id, hashedOtp, otpExpiry);
 
-        await sendEmail({
-            to: email,
-            subject: "Signup Email Verification OTP",
-            text: `Your OTP is ${otp}. It is valid for 10 minutes.`,
-            html: `
-        <h2>Email Verification</h2>
-        <p>Your OTP to verify your email for signup is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP is valid for 10 minutes.</p>
-      `,
-        });
+        if (isEmail) {
+            await sendEmail({
+                to: identifier,
+                subject: "Signup Email Verification OTP",
+                text: `Your OTP is ${otp}. It is valid for 10 minutes.`,
+                html: `
+            <h2>Email Verification</h2>
+            <p>Your OTP to verify your email for signup is:</p>
+            <h1>${otp}</h1>
+            <p>This OTP is valid for 10 minutes.</p>
+          `,
+            });
+        } else {
+            await sendSms({
+                to: identifier,
+                text: `Your HireFilter OTP is: ${otp}`,
+            });
+        }
 
         res.status(200).json(
-            new ApiResponse(200, null, "OTP sent successfully to your email")
+            new ApiResponse(200, null, `OTP sent successfully to your ${isEmail ? 'email' : 'phone'}`)
         );
     } catch (error) {
         res.status(500).json(formatError(error, 500, "Internal Server Error"));
@@ -67,10 +77,12 @@ export const verifySignupOtp = async (req, res) => {
             return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
         }
 
-        const { email, otp } = value;
-        const user = await findUserByEmail(email);
+        const { identifier, otp } = value;
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+        
+        const user = await findUserByIdentifier(identifier);
 
-        if (!user || (user.isEmailVerified && user.name)) {
+        if (!user || ((user.isEmailVerified || user.isPhoneVerified) && user.name)) {
              return res.status(400).json(new ApiError(400, "Invalid request", ["Invalid request"]));
         }
 
@@ -93,16 +105,19 @@ export const verifySignupOtp = async (req, res) => {
             return res.status(400).json(new ApiError(400, "Invalid or expired OTP", ["Invalid or expired OTP"]));
         }
 
-        // OTP correct → set isEmailVerified true and clear OTP
-        await updateUser(user._id, {
-             isEmailVerified: true,
+        // OTP correct → set isEmailVerified/isPhoneVerified true and clear OTP
+        const updatePayload = {
              otp: null,
              otpExpiry: null,
              otpAttempts: 0
-        });
+        };
+        if (isEmail) updatePayload.isEmailVerified = true;
+        else updatePayload.isPhoneVerified = true;
+        
+        await updateUser(user._id, updatePayload);
 
         return res.status(200).json(
-             new ApiResponse(200, null, "Email verified successfully. You can now complete your signup.")
+             new ApiResponse(200, null, `${isEmail ? 'Email' : 'Phone'} verified successfully. You can now complete your signup.`)
         );
 
     } catch (error) {
@@ -124,6 +139,7 @@ export const signup = async (req, res) => {
         const {
             name,
             email,
+            phone,
             password,
             role,
             company,
@@ -136,10 +152,11 @@ export const signup = async (req, res) => {
             }
         }
 
-        const userExists = await findUserByEmail(email);
+        const identifier = email || phone;
+        const userExists = await findUserByIdentifier(identifier);
         
-        if (!userExists || !userExists.isEmailVerified) {
-            return res.status(403).json(new ApiError(403, "Email not verified. Please verify OTP first.", ["Email not verified. Please verify OTP first."]));
+        if (!userExists || !(userExists.isEmailVerified || userExists.isPhoneVerified)) {
+            return res.status(403).json(new ApiError(403, "Identifier not verified. Please verify OTP first.", ["Identifier not verified. Please verify OTP first."]));
         }
 
         if (userExists.name && userExists.password) {
@@ -156,6 +173,9 @@ export const signup = async (req, res) => {
             role,
             company: role === "hr" ? { name: companyName } : undefined,
         };
+        
+        if (email) userPayload.email = email;
+        if (phone) userPayload.phone = phone;
 
         await updateUser(userExists._id, userPayload);
 
@@ -178,11 +198,15 @@ export const login = async (req, res) => {
             return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
         }
 
-        const { email, password } = value;
+        const { identifier, password } = value;
 
-        const user = await findUserByEmail(email);
+        const user = await findUserByIdentifier(identifier);
         if (!user) {
             return res.status(401).json(new ApiError(401, "Invalid credentials", ["Invalid credentials"]));
+        }
+
+        if (!user.password) {
+            return res.status(401).json(new ApiError(401, "Account setup incomplete. Please sign up or reset password."));
         }
 
         const isMatch = await bcrypt.compare(password, user.password);
@@ -240,12 +264,13 @@ export const forgotPassword = async (req, res) => {
             return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
         }
 
-        const { email } = value;
-        const user = await findUserByEmail(email);
+        const { identifier } = value;
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
+        const user = await findUserByIdentifier(identifier);
 
         if (!user) {
             return res.status(200).json(
-                new ApiResponse(200, null, "If the email exists, OTP has been sent")
+                new ApiResponse(200, null, "If the account exists, OTP has been sent")
             );
         }
 
@@ -256,18 +281,24 @@ export const forgotPassword = async (req, res) => {
 
         await saveOTP(user._id, hashedOtp, otpExpiry);
 
-        await sendEmail({
-            to: user.email,
-            subject: "Password Reset OTP",
-            text: `Your OTP is ${otp}. It is valid for 10 minutes.`,
-            html: `
-        <h2>Password Reset</h2>
-        <p>Your OTP is:</p>
-        <h1>${otp}</h1>
-        <p>This OTP is valid for 10 minutes.</p>
-      `,
-        });
-
+        if (isEmail) {
+            await sendEmail({
+                to: user.email,
+                subject: "Password Reset OTP",
+                text: `Your OTP is ${otp}. It is valid for 10 minutes.`,
+                html: `
+            <h2>Password Reset</h2>
+            <p>Your OTP is:</p>
+            <h1>${otp}</h1>
+            <p>This OTP is valid for 10 minutes.</p>
+          `,
+            });
+        } else {
+            await sendSms({
+                to: user.phone,
+                text: `Your HireFilter Password Reset OTP is: ${otp}`,
+            });
+        }
 
         res.status(200).json(
             new ApiResponse(200, null, "OTP sent successfully")
@@ -289,9 +320,9 @@ export const resetPassword = async (req, res) => {
             return res.status(400).json(new ApiError(400, "Validation failed", errorMessages));
         }
 
-        const { email, otp, newPassword } = value;
+        const { identifier, otp, newPassword } = value;
 
-        const user = await findUserByEmail(email);
+        const user = await findUserByIdentifier(identifier);
 
         // OTP missing or expired
         if (!user || !user.otp || user.otpExpiry < Date.now()) {

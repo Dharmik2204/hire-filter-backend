@@ -43,20 +43,20 @@ const userSchema = new mongoose.Schema(
   {
     name: {
       type: String,
-      required: function() { return this.isEmailVerified; },
+      required: function() { return this.isEmailVerified || this.isPhoneVerified; },
       trim: true,
     },
 
     email: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true,
       lowercase: true,
     },
 
     password: {
       type: String,
-      required: function() { return this.isEmailVerified; },
+      required: function() { return this.isEmailVerified || this.isPhoneVerified; },
     },
 
     role: {
@@ -76,6 +76,8 @@ const userSchema = new mongoose.Schema(
 
     phone: {
       type: String,
+      unique: true,
+      sparse: true,
     },
 
     currentAddress: addressSchema,
@@ -126,6 +128,10 @@ const userSchema = new mongoose.Schema(
       default: 0
     },
     isEmailVerified: {
+      type: Boolean,
+      default: false,
+    },
+    isPhoneVerified: {
       type: Boolean,
       default: false,
     },
