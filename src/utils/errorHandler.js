@@ -7,8 +7,8 @@ export const formatError = (error, statusCode = 500, message = "Server error") =
         statusCode,
         success: false,
         message,
-        errors: [],
+        errors: [error.message],
         data: null,
-        ...(isDevelopment && { stack: error.stack })
+        stack: error.stack
     };
 };

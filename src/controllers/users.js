@@ -150,6 +150,14 @@ export const updateProfile = async (req, res) => {
     );
 
   } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || error.keyValue || {})[0] || 'Field';
+      return res.status(409).json(new ApiError(409, `${field.charAt(0).toUpperCase() + field.slice(1)} is already in use by another account`, [`${field} is already in use`]));
+    }
+    if (error.name === "ValidationError") {
+      const messages = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json(new ApiError(400, "Mongoose Validation Error", messages));
+    }
     res.status(500).json(formatError(error, 500, "Failed to update profile"));
   }
 };
