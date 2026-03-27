@@ -20,7 +20,7 @@ export const sendSignupOtp = async (req, res) => {
 
         const { identifier } = value;
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
-        
+
         let user = await findUserByIdentifier(identifier);
 
         if (user && (user.isEmailVerified || user.isPhoneVerified) && user.name) {
@@ -32,7 +32,7 @@ export const sendSignupOtp = async (req, res) => {
         const hashedOtp = await bcrypt.hash(String(otp), 10);
 
         if (!user) {
-            const createPayload = isEmail 
+            const createPayload = isEmail
                 ? { email: identifier, isEmailVerified: false }
                 : { phone: identifier, isPhoneVerified: false };
             user = await createUser(createPayload);
@@ -79,11 +79,11 @@ export const verifySignupOtp = async (req, res) => {
 
         const { identifier, otp } = value;
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifier);
-        
+
         const user = await findUserByIdentifier(identifier);
 
         if (!user || ((user.isEmailVerified || user.isPhoneVerified) && user.name)) {
-             return res.status(400).json(new ApiError(400, "Invalid request", ["Invalid request"]));
+            return res.status(400).json(new ApiError(400, "Invalid request", ["Invalid request"]));
         }
 
         // OTP missing or expired
@@ -107,17 +107,17 @@ export const verifySignupOtp = async (req, res) => {
 
         // OTP correct → set isEmailVerified/isPhoneVerified true and clear OTP
         const updatePayload = {
-             otp: null,
-             otpExpiry: null,
-             otpAttempts: 0
+            otp: null,
+            otpExpiry: null,
+            otpAttempts: 0
         };
         if (isEmail) updatePayload.isEmailVerified = true;
         else updatePayload.isPhoneVerified = true;
-        
+
         await updateUser(user._id, updatePayload);
 
         return res.status(200).json(
-             new ApiResponse(200, null, `${isEmail ? 'Email' : 'Phone'} verified successfully. You can now complete your signup.`)
+            new ApiResponse(200, null, `${isEmail ? 'Email' : 'Phone'} verified successfully. You can now complete your signup.`)
         );
 
     } catch (error) {
@@ -154,7 +154,7 @@ export const signup = async (req, res) => {
 
         const identifier = email || phone;
         const userExists = await findUserByIdentifier(identifier);
-        
+
         if (!userExists || !(userExists.isEmailVerified || userExists.isPhoneVerified)) {
             return res.status(403).json(new ApiError(403, "Identifier not verified. Please verify OTP first.", ["Identifier not verified. Please verify OTP first."]));
         }
@@ -173,7 +173,7 @@ export const signup = async (req, res) => {
             role,
             company: role === "hr" ? { name: companyName } : undefined,
         };
-        
+
         if (email) userPayload.email = email;
         if (phone) userPayload.phone = phone;
 

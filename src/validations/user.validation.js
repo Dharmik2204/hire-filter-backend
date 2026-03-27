@@ -31,9 +31,10 @@ export const updateProfileSchema = Joi.object({
 
     phone: Joi.string()
         .trim()
-        .pattern(/^[0-9]{10}$/)
+        .pattern(/^[0-9+\-\s]{10,15}$/)
+        .allow("", null)
         .messages({
-            "string.pattern.base": "Phone number must be a valid 10-digit number",
+            "string.pattern.base": "Phone number must be a valid 10 to 15-digit number and can include +, -, and spaces",
         }),
 
     currentAddress: addressSchema,
